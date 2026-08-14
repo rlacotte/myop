@@ -1,24 +1,103 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mon Briefing</title>
+<title>Moi — podcasts MYOP</title>
 <style>
- body { margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        background:linear-gradient(160deg,#121430,#582c82); color:#fff; min-height:100vh;
-        display:flex; align-items:center; justify-content:center; }
- .card { text-align:center; padding:48px; max-width:520px; }
- h1 { font-size:2.4rem; margin:.2em 0 .4em; }
- a { color:#9fd0ff; word-break:break-all; }
- .qr { background:#fff; padding:12px; border-radius:12px; margin:20px 0; width:220px; }
- p { color:#d8d2ee; line-height:1.5; }
- code { background:rgba(255,255,255,.15); padding:2px 6px; border-radius:6px; }
-</style></head>
-<body><div class="card">
- <img src="cover.png" alt="pochette" style="width:180px;border-radius:16px">
- <h1>Mon Briefing</h1>
- <p>L'essentiel de l'actualité, résumé chaque matin en quelques minutes.</p>
- <p><a href="podcast.xml">https://rlacotte.github.io/myop/podcast.xml</a></p>
- <img class="qr" alt="QR code d’abonnement" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASgAAAEoAQAAAADDfFG0AAAB+0lEQVR4nO2azYojMRCDpSXv/8rfHFT+6Z1dmFO7YOzk0IkFEaYsq+QY/WD8+Qnooi7q+2AUGHnB+GrN0JX9+6iPJCTJkhEyMhjZzJmu7M+slywh4TwKa5RWZtqyP4qyZLGKqguvVqjPekTGIjXFY8G6sj+0XrX7jLNa2ZSsma7sG5yPj9eAdGX/PsrLr3pTLp5TXdkfQVm27OzFrBqy8tny9RPfUKXzSBaW7Oi9q8p6s38TVQaCKe3syqXMXP3aUcR4eawUVVxj4WjN/gBqCJaRIlwohoLr7/8an2HlZzcU54WMovm3vrYRf4/jU7e2MeJfJqMr+zP69WiBiJTNajvHqyXqU1ovR/bnUZl2yKd4NUbF1ScsTLsd4cru5OZf+zDV91isfpvyriML68r+UH05wdcm88IWDBvbmP3LqOEnqpZcjmuKWMStK/tT+VcZiaqt6rS3WLor+0N+YpkHSwJHvlZ42Jj9AZTn9nPSQyhXdvuhf6CM5Gh+jKvrqxkhdmb/PmqFz2ZYidqYtYCd2b+Mmv121VU51lKzusBty/7M+Thi++j+CL9U5+XVr3087repM3FmE+XJ2rI/ikplQcU7kMD1+on/o+pMHI3k+IfAcV7NUJCcHuHKvuq+qIxFa/avovb77bxL6We+A/d+aI3tEvulX7yo34T6AigzERqxvvgCAAAAAElFTkSuQmCC">
- <p>Scan le QR code ou copie l'URL dans ton lecteur de podcast<br>
- (Apple Podcasts, Overcast, Pocket Casts…).</p>
-</div></body></html>
+ :root { --bg1:#121430; --bg2:#582c82; --text:#f0eefb; --muted:#b9b2d8; --acc:#9fd0ff; }
+ * { box-sizing:border-box; }
+ body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+        background:linear-gradient(160deg,var(--bg1),var(--bg2) 90%); background-attachment:fixed;
+        color:var(--text); min-height:100vh; }
+ .wrap { max-width:880px; margin:0 auto; padding:32px 20px 80px; }
+ header.hero { text-align:center; padding:36px 0 8px; }
+ .hero img { width:150px; border-radius:20px; box-shadow:0 12px 40px rgba(0,0,0,.45); }
+ .hero h1 { margin:18px 0 4px; font-size:2rem; }
+ .hero p { color:var(--muted); margin:.2em 0; }
+ .show { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+         border-radius:20px; padding:24px; margin:22px 0; }
+ .show-head { display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+ .show-head img { width:96px; height:96px; border-radius:14px; object-fit:cover; }
+ .show h2 { margin:0; font-size:1.3rem; }
+ .show .desc { color:var(--muted); margin:.4em 0 0; max-width:520px; }
+ .apps { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+ .apps a, .apps button { text-decoration:none; cursor:pointer; font-size:.92rem;
+   padding:10px 16px; border-radius:12px; border:1px solid rgba(255,255,255,.2);
+   background:rgba(255,255,255,.1); color:var(--text); }
+ .apps a.primary { background:linear-gradient(120deg,var(--acc),#c39bff); color:#121430; font-weight:700; border:none; }
+ .apps a:hover, .apps button:hover { filter:brightness(1.15); }
+ .sub { display:flex; gap:18px; margin-top:16px; align-items:center; flex-wrap:wrap; }
+ .sub .url { font-family:ui-monospace,monospace; font-size:.8rem; color:var(--acc);
+   background:rgba(0,0,0,.3); padding:8px 12px; border-radius:10px; word-break:break-all; }
+ .sub img { background:#fff; padding:8px; border-radius:12px; width:120px; }
+ .eps { margin-top:14px; }
+ .ep { display:flex; gap:14px; align-items:center; padding:12px 4px;
+       border-bottom:1px solid rgba(255,255,255,.08); }
+ .ep:last-child { border:none; }
+ .ep .meta { flex:1; min-width:0; }
+ .ep .meta .desc { color:var(--muted); font-size:.8rem; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
+ .ep audio { width:230px; height:34px; }
+ .badge { color:var(--muted); font-size:.75rem; white-space:nowrap; }
+ footer { text-align:center; color:var(--muted); font-size:.8rem; margin-top:36px; }
+ footer a { color:var(--acc); }
+</style></head><body><div class="wrap">
+<header class="hero">
+ <img src="cover.png" alt="pochette">
+ <h1>Les podcasts de Moi</h1>
+ <p>Générés chaque jour par MYOP — ta radio personnelle</p>
+</header>
+<div id="shows"></div>
+<footer>Fait avec <a href="https://github.com/rlacotte/myop">MYOP — My Own Podcast</a></footer>
+</div>
+<script>
+const SHOWS = [{"id": "matin", "title": "Mon Briefing", "description": "L'essentiel de l'actualité, résumé chaque matin en quelques minutes.", "feed": "podcast.xml", "cover": "cover.png"}];
+const enc = encodeURIComponent;
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+async function loadShow(show) {
+  const card = document.createElement('section'); card.className = 'show';
+  card.innerHTML = `
+    <div class="show-head">
+      <img src="${show.cover}" alt="">
+      <div><h2>${esc(show.title)}</h2><p class="desc">${esc(show.description)}</p></div>
+    </div>
+    <div class="apps">
+      <a class="primary" href="podcasts://${location.host}${location.pathname}${show.feed}">🎧 Apple Podcasts</a>
+      <a href="https://overcast.fm/paste?url=${enc(location.origin + location.pathname + show.feed)}" target="_blank">Overcast</a>
+      <a href="pktc://subscribe/${location.origin + location.pathname + show.feed}/${enc(location.origin + location.pathname + show.feed)}">Pocket Casts</a>
+      <button onclick="navigator.clipboard.writeText(location.origin + location.pathname + show.feed).then(()=>this.textContent='✓ Copié')">Copier l'URL</button>
+    </div>
+    <div class="sub"><span class="url">${location.origin}${location.pathname}${show.feed}</span></div>
+    <div class="eps"><p class="badge">chargement des épisodes…</p></div>`;
+  const eps = card.querySelector('.eps');
+  try {
+    const xml = await (await fetch(show.feed)).text();
+    const doc = new DOMParser().parseFromString(xml, 'text/xml');
+    const items = [...doc.querySelectorAll('item')].slice(0, 15);
+    eps.innerHTML = '';
+    for (const item of items) {
+      const enclosure = item.querySelector('enclosure');
+      const date = new Date(item.querySelector('pubDate').textContent);
+      const row = document.createElement('div'); row.className = 'ep';
+      row.innerHTML = `
+        <div class="meta">
+          <strong>${esc(item.querySelector('title').textContent)}</strong>
+          <div class="desc">${esc(item.querySelector('description').textContent)}</div>
+        </div>
+        <span class="badge">${date.toLocaleDateString('fr-FR')}</span>
+        ${enclosure ? `<audio controls preload="none" src="${enclosure.getAttribute('url')}"></audio>` : ''}`;
+      eps.append(row);
+    }
+    if (!items.length) eps.innerHTML = '<p class="badge">aucun épisode pour l\'instant</p>';
+  } catch (e) {
+    eps.innerHTML = '<p class="badge">flux indisponible pour l\'instant</p>';
+  }
+  return card;
+}
+
+(async () => {
+  const box = document.getElementById('shows');
+  for (const show of SHOWS) box.append(await loadShow(show));
+})();
+</script>
+</body></html>
