@@ -8,7 +8,7 @@
     <docs>http://www.rssboard.org/rss-specification</docs>
     <generator>python-feedgen</generator>
     <language>fr</language>
-    <lastBuildDate>Fri, 14 Aug 2026 15:10:50 +0200</lastBuildDate>
+    <lastBuildDate>Fri, 14 Aug 2026 15:12:10 +0200</lastBuildDate>
     <itunes:author>Moi</itunes:author>
     <itunes:category text="News"/>
     <itunes:image href="https://rlacotte.github.io/myop/cover.png"/>
@@ -21,11 +21,11 @@
     <item>
       <title>Briefing du vendredi 14 août</title>
       <link>https://rlacotte.github.io/myop/episodes/2026-08-14.mp3</link>
-      <description>L’interdiction des réseaux sociaux aux moins de quinze ans censurée par le Conseil constitutionnel • Le Conseil constitutionnel censure la loi prévoyant d'interdire l'accès des mineurs de moins de 15 ans aux réseaux sociaux</description>
+      <description>L’interdiction des réseaux sociaux aux moins de quinze ans censurée par le Conseil constitutionnel • Réseaux sociaux: le Conseil constitutionnel censure leur interdiction aux moins de 15 ans • EN DIRECT, guerre en Ukraine: Vladimir Poutine est prêt à rencontrer les émissaires américains Steve Witkoff et Jared Kushner pour discuter de la fin du conflit, selon Sergueï Lavrov • Plus de 500 personnes évacuées, 1 100 hectares parcourus, 500 pompiers mobilisés… Ce que l'on sait de l'incendie qui s'est déclaré dans les Landes • Le Conseil constitutionnel censure la loi prévoyant d'interdire l'accès des mineurs de moins de 15 ans aux réseaux sociaux • Dans les librairies Gibert, les rayons se vident et le plan de relance de la direction inquiète les salariés • Incendie dans les Landes: la situation jugée "défavorable" par la préfecture, le feu a parcouru 1 100 hectares • Gironde: un adolescent reconnaît avoir jeté un mégot avant l'incendie qui a tué deux pompiers • Le visage d’Erling Haaland retrouvé sur 369 kilos de cocaïne en Équateur • ☕️ ASI se penche sur ce que l’IA fait au journalisme, et aux mouvements de résistance anti-IA</description>
       <guid isPermaLink="false">myop-2026-08-14</guid>
-      <enclosure url="https://rlacotte.github.io/myop/episodes/2026-08-14.mp3" length="617708" type="audio/mpeg"/>
-      <pubDate>Fri, 14 Aug 2026 15:10:50 +0200</pubDate>
-      <itunes:duration>1:42</itunes:duration>
+      <enclosure url="https://rlacotte.github.io/myop/episodes/2026-08-14.mp3" length="775101" type="audio/mpeg"/>
+      <pubDate>Fri, 14 Aug 2026 15:12:10 +0200</pubDate>
+      <itunes:duration>2:09</itunes:duration>
     </item>
   </channel>
 </rss>
