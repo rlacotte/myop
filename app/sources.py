@@ -144,8 +144,43 @@ def _filter_window(items: list[FeedItem], now: datetime, window: timedelta) -> l
     return fresh
 
 
+# Petits mots français sans valeur discriminante pour comparer deux titres
+_STOPWORDS = {
+    "le", "la", "les", "un", "une", "des", "du", "de", "et", "en", "au", "aux",
+    "pour", "avec", "sur", "dans", "par", "que", "qui", "ne", "pas", "se",
+    "son", "sa", "ses", "est", "sont", "apres", "contre", "plus", "moins",
+    "fait", "dit", "ces", "cet", "cette", "tout", "tous", "toujours",
+}
+
+
+def title_tokens(title: str) -> set[str]:
+    """Mots significatifs d'un titre (minuscules, sans accents, sans stopwords)."""
+    import unicodedata
+
+    plain = unicodedata.normalize("NFKD", title.lower()).encode("ascii", "ignore").decode()
+    words = re.findall(r"[a-z0-9]{3,}", plain)
+    return {word for word in words if word not in _STOPWORDS}
+
+
+def _similar(a: set[str], b: set[str], threshold: float = 0.5, min_overlap: int = 3) -> bool:
+    """Même sujet si similarité de Jaccard élevée ET assez de mots partagés.
+
+    Le minimum de mots communs évite les faux doublons sur les titres courts
+    (« Grève SNCF » vs « Grève RATP » partagent un mot mais pas le sujet).
+    """
+    overlap = a & b
+    if len(overlap) < min_overlap:
+        return False
+    union = a | b
+    return len(overlap) / len(union) >= threshold
+
+
 def _select(items: list[FeedItem], config: Config) -> list[FeedItem]:
-    """Trie par fraîcheur puis sélectionne en respectant max_per_source."""
+    """Trie par fraîcheur puis sélectionne en respectant max_per_source.
+
+    Les quasi-doublons (même info reprise par plusieurs médias sous des
+    titres différents) sont écartés par similarité de titres.
+    """
     # Les plus récents d'abord ; les items sans date passent en dernier.
     ordered = sorted(
         items,
@@ -153,6 +188,7 @@ def _select(items: list[FeedItem], config: Config) -> list[FeedItem]:
         reverse=True,
     )
     selected: list[FeedItem] = []
+    signatures: list[set[str]] = []
     per_source: dict[str, int] = {}
     wanted = config.num_headlines
     for item in ordered:
@@ -161,7 +197,11 @@ def _select(items: list[FeedItem], config: Config) -> list[FeedItem]:
         count = per_source.get(item.source_name, 0)
         if count >= config.max_per_source:
             continue
+        signature = title_tokens(item.title)
+        if any(_similar(signature, existing) for existing in signatures):
+            continue  # même sujet déjà retenu via une autre source
         per_source[item.source_name] = count + 1
+        signatures.append(signature)
         selected.append(item)
     return selected
 

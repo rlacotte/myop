@@ -128,3 +128,61 @@ async def test_diversity_max_per_source(now):
         per_source[item.source_name] = per_source.get(item.source_name, 0) + 1
     assert max(per_source.values()) == 2
     assert len(result.selected) == 4
+
+
+def test_title_tokens_ignores_stopwords_and_accents():
+    from app.sources import title_tokens
+
+    tokens = title_tokens("Le Conseil constitutionnel censure l'interdiction aux mineurs")
+    assert "conseil" in tokens and "constitutionnel" in tokens and "censure" in tokens
+    assert "les" not in tokens and "aux" not in tokens  # stopwords ignorés
+    assert "l" not in tokens  # trop courts
+
+
+async def test_near_duplicate_titles_deduped(now):
+    """Le même sujet repris par deux médias sous des titres proches ne sort qu'une fois."""
+    feed_a = make_rss(
+        [
+            {
+                "title": "Le Conseil constitutionnel censure la loi interdisant les réseaux sociaux aux mineurs de 15 ans",
+                "link": "https://a.example/reseaux",
+                "date": now - timedelta(minutes=10),
+            }
+        ]
+    )
+    feed_b = make_rss(
+        [
+            {
+                "title": "Réseaux sociaux : le Conseil constitutionnel censure l'interdiction aux mineurs de 15 ans",
+                "link": "https://b.example/meme-sujet",
+                "date": now - timedelta(minutes=5),
+            },
+            {
+                "title": "Le prix du tabac augmente de 5 % au 1er janvier",
+                "link": "https://b.example/tabac",
+                "date": now - timedelta(minutes=1),
+            },
+        ]
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, content=feed_a if "a.example" in str(request.url) else feed_b
+        )
+
+    config = Config(
+        num_headlines=5,
+        num_briefs=0,
+        sources=[
+            Source(name="A", url="https://a.example/rss"),
+            Source(name="B", url="https://b.example/rss"),
+        ],
+    )
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await fetch_items(config, now=now, client=client)
+
+    titles = [item.title for item in result.selected]
+    assert len(result.selected) == 2  # le doublon sémantique est écarté
+    constitutionnel = [t for t in titles if "constitutionnel" in t.lower()]
+    assert len(constitutionnel) == 1
+    assert "Le prix du tabac augmente de 5 % au 1er janvier" in titles
