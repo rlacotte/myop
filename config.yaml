@@ -4,7 +4,7 @@ language: fr-FR
 author: Moi
 email: moi@example.com
 category: News
-voice: fr-FR-DeniseNeural
+voice: fr-FR-HenriNeural
 intro_rate: -8%
 brief_rate: +4%
 num_headlines: 10
@@ -29,6 +29,12 @@ sources:
 - name: France Culture — Idées
   url: https://www.radiofrance.fr/franceculture/rss
   priority: 1
+# Rédaction du script par IA via OpenRouter (clé dans .openrouter_api_key,
+# non versionné). En cas d'échec : repli automatique sur le script déterministe.
+ai:
+  enabled: true
+  model: google/gemini-3.6-flash
+  key_file: .openrouter_api_key
 github:
   repo: null
   pages_base: null

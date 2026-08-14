@@ -31,6 +31,7 @@ class GenerationResult:
     size: int = 0
     titles: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    ai_used: bool = False
 
 
 def load_seen(dist_dir: Path) -> set[str]:
@@ -163,6 +164,36 @@ def write_index(config: Config, dist_dir: Path) -> None:
     (dist_dir / "index.html").write_text(html, encoding="utf-8")
 
 
+async def _compose_script(
+    config: Config, items: list, now: datetime, result: GenerationResult
+) -> list:
+    """Script IA si activée et disponible, sinon script déterministe.
+
+    L'IA ne doit jamais bloquer la production : tout échec retombe
+    (avec avertissement) sur le script classique.
+    """
+    if config.ai.enabled:
+        from .ai import ai_script, load_api_key
+
+        if load_api_key(config):
+            try:
+                segments = await ai_script(config, items, now=now)
+            except Exception as exc:  # réseau, HTTP, quota… on continue sans IA
+                result.warnings.append(
+                    f"IA en échec ({exc.__class__.__name__}) → script déterministe"
+                )
+                segments = None
+            if segments:
+                result.ai_used = True
+                return segments
+            result.warnings.append("Réponse IA inutilisable → script déterministe")
+        else:
+            result.warnings.append(
+                "IA activée mais clé absente (.openrouter_api_key) → script déterministe"
+            )
+    return build_script(config, items, now=now)
+
+
 async def generate_episode(
     config: Config,
     dist_dir: Path | None = None,
@@ -190,7 +221,7 @@ async def generate_episode(
 
     # Épisode du jour (une seule édition par date : regénérer remplace le fichier)
     episode_id = now.astimezone(PARIS).date().isoformat()
-    segments = build_script(config, fetched.selected, now=now)
+    segments = await _compose_script(config, fetched.selected, now, result)
     mp3_path = episodes_dir / f"{episode_id}.mp3"
     mp3_path, duration = await synthesize(segments, config.voice, mp3_path)
 

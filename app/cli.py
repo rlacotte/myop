@@ -137,6 +137,8 @@ def cmd_generate(args) -> int:
         return 0 if config.skip_if_empty else 1
     print(f"✅ Épisode {result.episode_id} : {result.episode_path}")
     print(f"   {result.duration // 60} min {result.duration % 60:02d}s — {result.size // 1024} Ko")
+    if result.ai_used:
+        print(f"   ✍️  script rédigé par l'IA ({config.ai.model})")
     for title in result.titles:
         print(f"   • {title}")
     if args.publish:

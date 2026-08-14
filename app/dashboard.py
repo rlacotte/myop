@@ -59,6 +59,8 @@ def page_episodes(request: Request):
 @app.get("/api/state")
 def get_state():
     config = load_config()
+    from .ai import load_api_key
+
     return {
         "title": config.title,
         "feed_url": config.feed_url,
@@ -66,6 +68,9 @@ def get_state():
         "repo": config.github.repo,
         "has_repo": publish.remote_slug() is not None,
         "delivery_hour": config.delivery_hour,
+        "ai_enabled": config.ai.enabled,
+        "ai_model": config.ai.model,
+        "ai_available": load_api_key(config) is not None,
     }
 
 
@@ -86,6 +91,8 @@ class SettingsUpdate(BaseModel):
     max_per_source: int | None = Field(default=None, ge=1, le=10)
     skip_if_empty: bool | None = None
     delivery_hour: str | None = None
+    ai_enabled: bool | None = None
+    ai_model: str | None = None
 
 
 @app.put("/api/settings")
@@ -98,6 +105,12 @@ def put_settings(update: SettingsUpdate):
             raise HTTPException(400, "Heure invalide (format HH:MM attendu)")
         if config.delivery_hour != changes["delivery_hour"]:
             publish.update_workflow_cron(changes["delivery_hour"])
+
+    # Section IA : mapping vers l'objet imbriqué
+    if "ai_enabled" in changes:
+        config.ai.enabled = changes.pop("ai_enabled")
+    if "ai_model" in changes:
+        config.ai.model = changes.pop("ai_model").strip()
 
     validated = Config.model_validate(config.model_copy(update=changes).model_dump())
     save_config(validated)
@@ -261,6 +274,7 @@ async def start_generation():
                 "size": result.size,
                 "titles": result.titles,
                 "warnings": result.warnings,
+                "ai_used": result.ai_used,
             }
             _job["log"].append("Terminé ✅" if result.ok else f"Aucun épisode : {result.reason}")
         except Exception as exc:  # le dashboard ne doit jamais crasher

@@ -17,7 +17,8 @@ Toi ◄── Apple Podcasts / Overcast ◄── flux RSS (GitHub Pages) ◄─
 
 - **Collecte** tes flux RSS (24 dernières heures, élargi à 48 h si besoin), dédoublonne
   les articles et répartit les sources (max. par source configurable)
-- **Rédige** un script : intro datée → flash des titres → brèves détaillées → outro
+- **Rédige** le script : soit par **IA** (OpenRouter — ex. Gemini), soit par assemblage
+  déterministe : intro datée → flash des titres → brèves détaillées → outro
 - **Synthétise** la voix (Edge TTS — voix neuronales Microsoft, gratuit, sans clé API)
 - **Publie** le MP3 + le flux RSS conforme iTunes sur GitHub Pages (URL HTTPS publique)
 - **Génère chaque jour** via GitHub Actions (heure de livraison configurable)
@@ -114,6 +115,36 @@ Tout est dans `config.yaml` (ou le dashboard). Quelques exemples :
 - **Heure de livraison** : `delivery_hour: '08:00'` dans `config.yaml`,
   puis `myop setup` ou le dashboard mettent à jour le cron
 - **Durée de l'épisode** : joue sur `num_headlines`, `num_briefs`, `max_brief_chars`
+
+## ✍️ Rédaction du script par IA (optionnelle)
+
+MYOP peut faire rédiger le briefing par un modèle de langage via **OpenRouter**
+(default : `google/gemini-3.6-flash`), pour un style radio plus naturel
+(transitions, reformulations, mise en relief).
+
+1. Copie ta clé OpenRouter dans `.openrouter_api_key` à la racine du repo
+   (fichier **non versionné** ; la variable `OPENROUTER_API_KEY` marche aussi) :
+   ```bash
+   echo "sk-or-v1-..." > .openrouter_api_key
+   ```
+2. Active dans `config.yaml` ou depuis le dashboard (onglet Réglages) :
+   ```yaml
+   ai:
+     enabled: true
+     model: google/gemini-3.6-flash   # n'importe quel modèle OpenRouter
+   ```
+3. Régénère : `uv run myop generate`
+
+Le modèle reçoit uniquement les articles collectés (avec leur source) et doit
+répondre en JSON structuré — aucune invention de faits autorisée (consigne
+système). **Repli garanti** : si la clé manque, si l'API tombe ou si la réponse
+est inutilisable, le script déterministe classique est utilisé et l'épisode
+part quand même (un avertissement s'affiche dans les logs).
+
+> **Note GitHub Actions** : la clé n'étant pas versionnée, la génération
+> quotidienne distante tourne en mode déterministe. Pour l'IA dans le cloud,
+> ajoute la clé comme secret du repo (`OPENROUTER_API_KEY`) et exporte-la
+> dans le workflow avant l'étape de génération.
 
 ## ❓FAQ
 

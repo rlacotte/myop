@@ -71,6 +71,7 @@ if (document.body.dataset.page === "settings") {
     const payload = {};
     for (const [key, value] of fd.entries()) payload[key] = value;
     payload.skip_if_empty = fd.get("skip_if_empty") === "on";
+    payload.ai_enabled = fd.get("ai_enabled") === "on";
     for (const key of ["num_headlines", "num_briefs", "max_brief_chars", "max_per_source"]) {
       payload[key] = parseInt(payload[key], 10);
     }
@@ -236,7 +237,7 @@ if (document.body.dataset.page === "episodes") {
     const result = status.result;
     if (result) {
       if (result.ok) {
-        html += `<div>✅ Épisode <strong>${result.episode_id}</strong> — ${fmtDuration(result.duration)}, ${Math.round(result.size / 1024)} Ko</div><ul>`;
+        html += `<div>✅ Épisode <strong>${result.episode_id}</strong> — ${fmtDuration(result.duration)}, ${Math.round(result.size / 1024)} Ko${result.ai_used ? " · ✍️ script IA" : ""}</div><ul>`;
         for (const t of result.titles || []) html += `<li>${t}</li>`;
         html += "</ul>";
       } else {

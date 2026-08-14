@@ -45,6 +45,19 @@
     </label>
   </div>
 
+  <h2>Rédaction IA (OpenRouter)</h2>
+  <div class="grid2">
+    <label>Modèle
+      <input name="ai_model" value="{{ config.ai.model }}" placeholder="google/gemini-3.6-flash">
+    </label>
+    <label class="checkbox" style="margin-top:26px">
+      <input type="checkbox" name="ai_enabled" {% if config.ai.enabled %}checked{% endif %}>
+      Script rédigé par l'IA <span class="hint">(repli auto sinon)</span>
+    </label>
+  </div>
+  <p class="hint">La clé se trouve dans <code>.openrouter_api_key</code> (non versionné).
+  En cas d'échec de l'IA, le script déterministe classique est utilisé : l'épisode part quand même.</p>
+
   <h2>Contenu de l'épisode</h2>
   <div class="grid2">
     <label>Nombre de titres (flash)

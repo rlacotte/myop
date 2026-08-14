@@ -26,6 +26,14 @@ class GitHubConfig(BaseModel):
     private: bool = False
 
 
+class AIConfig(BaseModel):
+    """Rédaction du script par IA via OpenRouter (optionnelle)."""
+
+    enabled: bool = False
+    model: str = "google/gemini-3.6-flash"
+    key_file: str = ".openrouter_api_key"  # racine du repo, non versionné
+
+
 class Config(BaseModel):
     """Configuration complète du podcast."""
 
@@ -54,6 +62,9 @@ class Config(BaseModel):
 
     # Sources RSS
     sources: list[Source] = Field(default_factory=list)
+
+    # Rédaction IA (OpenRouter) — repli automatique sur le script déterministe
+    ai: AIConfig = Field(default_factory=AIConfig)
 
     # Livraison GitHub
     github: GitHubConfig = Field(default_factory=GitHubConfig)

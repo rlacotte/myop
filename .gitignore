@@ -8,3 +8,4 @@ dist/
 *.mp3
 .DS_Store
 .zcode/
+.openrouter_api_key
