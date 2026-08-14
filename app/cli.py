@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -17,14 +18,19 @@ from .script import PARIS
 DEFAULT_REPO_NAME = "myop"
 
 
+def _tool_ok(cmd: list[str]) -> bool:
+    """Vrai si la commande réussit (gh auth status écrit sur stderr, pas stdout)."""
+    return subprocess.run(cmd, capture_output=True).returncode == 0
+
+
 def _check_prerequisites(interactive: bool = True) -> list[str]:
     """Vérifie ffmpeg / gh / git ; retourne les problèmes non bloquants."""
     problems: list[str] = []
-    if not publish.sh(["ffmpeg", "-version"], check=False):
+    if not _tool_ok(["ffmpeg", "-version"]):
         problems.append("ffmpeg est introuvable — installe-le : brew install ffmpeg")
-    if not publish.sh(["git", "--version"], check=False):
+    if not _tool_ok(["git", "--version"]):
         problems.append("git est introuvable.")
-    if not publish.sh(["gh", "auth", "status"], check=False):
+    if not _tool_ok(["gh", "auth", "status"]):
         problems.append("gh n'est pas authentifié — lance : gh auth login")
     for problem in problems:
         print(f"  ⚠️  {problem}")
