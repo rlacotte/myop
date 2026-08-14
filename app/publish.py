@@ -174,18 +174,26 @@ def setup_repo(name: str, *, private: bool, slug: str | None = None) -> str:
 
 def enable_pages(slug: str) -> str:
     """Active GitHub Pages sur la branche gh-pages. Retourne l'URL du site."""
-    current = sh(["gh", "api", f"repos/{slug}/pages"], check=False)
-    if current:
-        if '"branch": "gh-pages"' in current:
-            return pages_base_for(slug)
-        # Pages activé sur autre chose : on le repositionne
+    # On se fie au code retour : selon la version de gh, l'erreur 404 arrive
+    # sur stdout ou stderr — le contenu n'est pas fiable.
+    import subprocess
+
+    probe = subprocess.run(
+        ["gh", "api", f"repos/{slug}/pages"], capture_output=True, text=True
+    )
+    if probe.returncode != 0:
+        # Pas encore de site Pages : création sur la branche gh-pages
         sh(
-            ["gh", "api", "-X", "PUT", f"repos/{slug}/pages",
+            ["gh", "api", "-X", "POST", f"repos/{slug}/pages",
              "-f", "source[branch]=gh-pages", "-f", "source[path]=/"]
         )
         return pages_base_for(slug)
+
+    if "gh-pages" in probe.stdout:
+        return pages_base_for(slug)
+    # Pages activé sur autre chose : on le repositionne sur gh-pages
     sh(
-        ["gh", "api", "-X", "POST", f"repos/{slug}/pages",
+        ["gh", "api", "-X", "PUT", f"repos/{slug}/pages",
          "-f", "source[branch]=gh-pages", "-f", "source[path]=/"]
     )
     return pages_base_for(slug)
