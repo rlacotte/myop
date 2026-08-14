@@ -145,10 +145,101 @@ class SourceMove(BaseModel):
     direction: int  # -1 = monter, +1 = descendre
 
 
+class LibraryToggle(BaseModel):
+    url: str
+    enabled: bool
+
+
+class CategoryToggle(BaseModel):
+    category: str
+    enabled: bool
+
+
 @app.get("/api/sources")
 def get_sources():
     config = load_config()
     return [{"index": i, **source.model_dump()} for i, source in enumerate(config.sources)]
+
+
+@app.get("/api/library")
+def get_library():
+    """Bibliothèque de sources intégrée, avec l'état actif de chaque flux."""
+    from .library import LIBRARY
+
+    config = load_config()
+    active = {source.url for source in config.sources}
+    categories = [
+        {
+            "category": category,
+            "feeds": [{**feed, "active": feed["url"] in active} for feed in feeds],
+        }
+        for category, feeds in LIBRARY.items()
+    ]
+    custom = [
+        {"index": i, "name": source.name, "url": source.url}
+        for i, source in enumerate(config.sources)
+        if source.url not in _library_urls()
+    ]
+    return {
+        "categories": categories,
+        "custom": custom,
+        "active_count": len(config.sources),
+    }
+
+
+def _library_urls() -> set[str]:
+    from .library import library_urls
+
+    return library_urls()
+
+
+def _find_in_library(url: str) -> dict | None:
+    from .library import LIBRARY
+
+    for feeds in LIBRARY.values():
+        for feed in feeds:
+            if feed["url"] == url:
+                return feed
+    return None
+
+
+@app.post("/api/library/toggle")
+def toggle_library_source(payload: LibraryToggle):
+    """Active ou désactive un flux de la bibliothèque."""
+    feed = _find_in_library(payload.url)
+    if not feed:
+        raise HTTPException(404, "Flux inconnu dans la bibliothèque")
+    config = load_config()
+    urls = {source.url for source in config.sources}
+    if payload.enabled and feed["url"] not in urls:
+        config.sources.append(Source(name=feed["name"], url=feed["url"]))
+    elif not payload.enabled and feed["url"] in urls:
+        config.sources = [s for s in config.sources if s.url != feed["url"]]
+    else:
+        return {"ok": True, "unchanged": True}
+    save_config(config)
+    return {"ok": True, "active_count": len(config.sources)}
+
+
+@app.post("/api/library/category")
+def toggle_library_category(payload: CategoryToggle):
+    """Active ou désactive toute une catégorie de la bibliothèque."""
+    from .library import LIBRARY
+
+    feeds = LIBRARY.get(payload.category)
+    if feeds is None:
+        raise HTTPException(404, "Catégorie inconnue")
+    config = load_config()
+    category_urls = {feed["url"] for feed in feeds}
+    if payload.enabled:
+        existing = {source.url for source in config.sources}
+        for feed in feeds:
+            if feed["url"] not in existing:
+                config.sources.append(Source(name=feed["name"], url=feed["url"]))
+    else:
+        config.sources = [s for s in config.sources if s.url not in category_urls]
+    save_config(config)
+    return {"ok": True, "active_count": len(config.sources)}
 
 
 @app.post("/api/sources")

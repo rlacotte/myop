@@ -87,67 +87,164 @@ if (document.body.dataset.page === "settings") {
 /* ------------------------------------------------------------------ page : sources */
 
 if (document.body.dataset.page === "sources") {
-  const list = $("#sources-list");
+  const libraryList = $("#library-list");
+  const customList = $("#custom-list");
+  const searchBox = $("#library-search");
+  let libraryData = null;
 
   async function refresh() {
-    const sources = await api("/sources");
-    list.innerHTML = "";
-    if (!sources.length) {
-      list.innerHTML = '<p class="loading">Aucune source — ajoute un flux RSS ci-dessus.</p>';
+    libraryData = await api("/library");
+    renderLibrary();
+    renderCustom(libraryData.custom);
+  }
+
+  function renderLibrary() {
+    const query = (searchBox?.value || "").trim().toLowerCase();
+    $("#active-count").textContent = `${libraryData.active_count} source(s) active(s)`;
+    libraryList.innerHTML = "";
+
+    for (const { category, feeds } of libraryData.categories) {
+      const shown = feeds.filter(
+        (f) =>
+          !query ||
+          f.name.toLowerCase().includes(query) ||
+          category.toLowerCase().includes(query)
+      );
+      if (!shown.length) continue;
+
+      const allOn = feeds.every((f) => f.active);
+      const section = document.createElement("div");
+      section.className = "category";
+      section.innerHTML = `
+        <div class="category-head">
+          <span class="category-name">${category}</span>
+          <span class="badge">${feeds.filter((f) => f.active).length}/${feeds.length}</span>
+          <button class="btn small ghost" data-category="${category}" data-enable="${allOn ? "false" : "true"}">
+            ${allOn ? "Tout retirer" : "Tout activer"}
+          </button>
+        </div>`;
+      for (const feed of shown) {
+        const row = document.createElement("div");
+        row.className = `feed-row${feed.active ? " on" : ""}`;
+        row.innerHTML = `
+          <label class="switch" title="${feed.active ? "Désactiver" : "Activer"}">
+            <input type="checkbox" data-url="${feed.url}" ${feed.active ? "checked" : ""}>
+            <span class="slider"></span>
+          </label>
+          <span class="source-name">${feed.name}</span>
+          <button class="btn small ghost" data-test="${feed.url}" data-name="${feed.name}">Tester</button>`;
+        section.append(row);
+      }
+      libraryList.append(section);
+    }
+
+    if (!libraryList.children.length) {
+      libraryList.innerHTML = '<p class="loading">Aucune source ne correspond à ta recherche.</p>';
+    }
+  }
+
+  function renderCustom(custom) {
+    customList.innerHTML = "";
+    if (!custom.length) {
+      customList.innerHTML =
+        '<p class="hint">Aucune source personnalisée — ajoute ci-dessous n\'importe quel flux RSS.</p>';
       return;
     }
-    sources.forEach((source, position) => {
+    const list = document.createElement("div");
+    list.className = "custom-list";
+    custom.forEach((source) => {
       const row = document.createElement("div");
       row.className = "source-row";
       row.innerHTML = `
-        <button class="btn small ghost" data-move="-1" title="Monter" ${position === 0 ? "disabled" : ""}>↑</button>
-        <button class="btn small ghost" data-move="1" title="Descendre" ${position === sources.length - 1 ? "disabled" : ""}>↓</button>
         <span class="source-name">${source.name}</span>
         <span class="source-url">${source.url}</span>
-        <button class="btn small" data-test>Tester</button>
-        <button class="btn small danger" data-delete>✕</button>`;
+        <button class="btn small" data-test="${source.url}" data-name="${source.name}">Tester</button>
+        <button class="btn small danger" data-delete="${source.index}">✕</button>`;
       list.append(row);
-
-      row.querySelector("[data-delete]").addEventListener("click", async () => {
-        try {
-          await api(`/sources/${source.index}`, { method: "DELETE" });
-          refresh();
-        } catch (err) {
-          toast(err.message, "err");
-        }
-      });
-      row.querySelectorAll("[data-move]").forEach((btn) =>
-        btn.addEventListener("click", async () => {
-          try {
-            await api(`/sources/${source.index}/move`, {
-              method: "POST",
-              body: JSON.stringify({ direction: parseInt(btn.dataset.move, 10) }),
-            });
-            refresh();
-          } catch (err) {
-            toast(err.message, "err");
-          }
-        })
-      );
-      row.querySelector("[data-test]").addEventListener("click", async () => {
-        const box = $("#preview-box");
-        box.hidden = false;
-        $("#preview-title").textContent = `Test — ${source.name}`;
-        $("#preview-items").innerHTML = '<li class="loading">Chargement…</li>';
-        try {
-          const data = await api(`/sources/preview?url=${encodeURIComponent(source.url)}`);
-          $("#preview-title").textContent = `Test — ${data.feed_title || source.name}`;
-          $("#preview-items").innerHTML =
-            data.items
-              .map((item) => `<li>${item.title}<span class="date">${item.date}</span></li>`)
-              .join("") || '<li class="loading">Aucun item dans ce flux.</li>';
-        } catch (err) {
-          $("#preview-items").innerHTML = `<li class="loading">⚠️ ${err.message}</li>`;
-        }
-      });
     });
+    customList.append(list);
   }
 
+  // Bascule d'une source de la bibliothèque
+  libraryList.addEventListener("change", async (event) => {
+    const url = event.target.dataset?.url;
+    if (!url) return;
+    try {
+      const data = await api("/library/toggle", {
+        method: "POST",
+        body: JSON.stringify({ url, enabled: event.target.checked }),
+      });
+      libraryData.active_count = data.active_count;
+      const feed = libraryData.categories
+        .flatMap((c) => c.feeds)
+        .find((f) => f.url === url);
+      if (feed) feed.active = event.target.checked;
+      renderLibrary();
+      toast(event.target.checked ? "Source activée ✓" : "Source retirée");
+    } catch (err) {
+      toast(err.message, "err");
+      renderLibrary();
+    }
+  });
+
+  // Activer / retirer toute une catégorie
+  libraryList.addEventListener("click", async (event) => {
+    const btn = event.target.closest("[data-category]");
+    if (!btn) return;
+    btn.disabled = true;
+    try {
+      const data = await api("/library/category", {
+        method: "POST",
+        body: JSON.stringify({
+          category: btn.dataset.category,
+          enabled: btn.dataset.enable === "true",
+        }),
+      });
+      await refresh();
+      toast(data.active_count + " source(s) active(s) ✓");
+    } catch (err) {
+      toast(err.message, "err");
+      btn.disabled = false;
+    }
+  });
+
+  searchBox?.addEventListener("input", renderLibrary);
+
+  // Test d'un flux (bibliothèque ou perso) : aperçu des derniers items
+  document.addEventListener("click", async (event) => {
+    const btn = event.target.closest("[data-test]");
+    if (!btn) return;
+    const box = $("#preview-box");
+    box.hidden = false;
+    box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    $("#preview-title").textContent = `Test — ${btn.dataset.name}`;
+    $("#preview-items").innerHTML = '<li class="loading">Chargement…</li>';
+    try {
+      const data = await api(`/sources/preview?url=${encodeURIComponent(btn.dataset.test)}`);
+      $("#preview-title").textContent = `Test — ${data.feed_title || btn.dataset.name}`;
+      $("#preview-items").innerHTML =
+        data.items
+          .map((item) => `<li>${item.title}<span class="date">${item.date}</span></li>`)
+          .join("") || '<li class="loading">Aucun item dans ce flux.</li>';
+    } catch (err) {
+      $("#preview-items").innerHTML = `<li class="loading">⚠️ ${err.message}</li>`;
+    }
+  });
+
+  // Suppression d'une source perso
+  customList.addEventListener("click", async (event) => {
+    const btn = event.target.closest("[data-delete]");
+    if (!btn) return;
+    try {
+      await api(`/sources/${btn.dataset.delete}`, { method: "DELETE" });
+      refresh();
+      toast("Source supprimée ✓");
+    } catch (err) {
+      toast(err.message, "err");
+    }
+  });
+
+  // Ajout d'une source perso
   $("#add-source").addEventListener("submit", async (event) => {
     event.preventDefault();
     const fd = new FormData(event.target);

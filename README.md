@@ -70,8 +70,8 @@ make serve   # → http://localhost:8484
 
 | Onglet | Actions |
 |---|---|
-| **Réglages** | titre, description, voix (extrait écoutable), débit, nombre de titres/brèves, heure de livraison |
-| **Sources** | ajouter / supprimer / réordonner des flux RSS, tester un flux (aperçu des derniers articles) |
+| **Réglages** | titre, description, voix (extrait écoutable), débit, IA (modèle), nombre de titres/brèves, heure de livraison |
+| **Sources** | **bibliothèque intégrée** : 36 flux vérifiés en 11 catégories (actus, tech, sciences, culture, sport, éco, crypto…) à activer d'un clic — par flux ou par catégorie entière — avec recherche et test en direct ; + ajout de flux personnalisés |
 | **Épisodes** | générer maintenant, écouter, publier sur GitHub, déclencher l'action manuellement, QR code |
 
 Après modification des réglages, clique sur **« Publier la config »** pour que la
@@ -108,6 +108,11 @@ uv run myop voices             # liste les voix françaises disponibles
 
 Tout est dans `config.yaml` (ou le dashboard). Quelques exemples :
 
+- **Sources** : bibliothèque intégrée dans le dashboard (onglet Sources) — case à
+  cocher par flux, « Tout activer » par catégorie, recherche, test en direct.
+  Pour ajouter un flux quelconque : section « Mes sources personnalisées ».
+  (Tous les flux de la bibliothèque ont été vérifiés en direct ; le bouton
+  « Tester » permet de re-vérifier à tout moment.)
 - **Voix** : `fr-FR-HenriNeural` (homme), `fr-FR-VivienneMultilingualNeural`,
   voix québécoises, belges, suisses… (`uv run myop voices` pour la liste)
 - **Pochette** : remplace simplement `dist/cover.png` par ta propre image
