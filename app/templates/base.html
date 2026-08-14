@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}MYOP{% endblock %} · My Own Podcast</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body data-page="{% block page %}{% endblock %}">
+  <header class="topbar">
+    <div class="brand">🎙️ <strong>MYOP</strong><span class="brand-sub">My Own Podcast</span></div>
+    <nav>
+      <a href="/" data-nav="/">Réglages</a>
+      <a href="/sources" data-nav="/sources">Sources</a>
+      <a href="/episodes" data-nav="/episodes">Épisodes</a>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <div id="toast" role="status" hidden></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

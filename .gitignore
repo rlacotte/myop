@@ -1,0 +1,10 @@
+# MYOP
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+dist/
+.publish/
+*.mp3
+.DS_Store
+.zcode/

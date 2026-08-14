@@ -1,0 +1,35 @@
+title: Mon Briefing
+description: L'essentiel de l'actualité, résumé chaque matin en quelques minutes.
+language: fr-FR
+author: Moi
+email: moi@example.com
+category: News
+voice: fr-FR-DeniseNeural
+intro_rate: -8%
+brief_rate: +4%
+num_headlines: 10
+num_briefs: 4
+max_brief_chars: 450
+max_per_source: 3
+skip_if_empty: true
+delivery_hour: 07:30
+sources:
+- name: Le Monde — À la une
+  url: https://www.lemonde.fr/rss/une.xml
+  priority: 1
+- name: franceinfo — Titres
+  url: https://www.francetvinfo.fr/titres.rss
+  priority: 1
+- name: Europe 1 — Actualités
+  url: https://www.europe1.fr/rss.xml
+  priority: 1
+- name: NextINpact — Numérique
+  url: https://www.nextinpact.com/rss
+  priority: 1
+- name: France Culture — Idées
+  url: https://www.radiofrance.fr/franceculture/rss
+  priority: 1
+github:
+  repo: null
+  pages_base: null
+  private: false

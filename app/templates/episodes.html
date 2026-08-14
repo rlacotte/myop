@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Épisodes{% endblock %}
+{% block page %}episodes{% endblock %}
+{% block content %}
+<h1>Épisodes &amp; abonnement</h1>
+
+<section class="card" id="subscribe-card">
+  <h2>📲 Abonnement</h2>
+  {% if config.feed_url %}
+    <div class="row">
+      <input id="feed-url" readonly value="{{ config.feed_url }}" class="grow">
+      <button id="copy-url" class="btn ghost">Copier</button>
+    </div>
+    <div class="qr-wrap"><img id="qr" alt="QR code du flux" hidden></div>
+    <p class="hint">Scanne le QR code avec l'app Podcasts de ton iPhone, ou colle l'URL
+    dans Overcast / Pocket Casts / Apple Podcasts → « S'abonner par URL ».</p>
+  {% else %}
+    <p class="hint">Flux pas encore publié — lance <code>myop setup</code> dans le terminal
+    pour créer le repo GitHub et publier le premier épisode.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>🎙️ Génération</h2>
+  <div class="row wrap">
+    <button id="btn-generate" class="btn primary">⚡ Générer maintenant</button>
+    <button id="btn-publish-config" class="btn">📤 Publier la config</button>
+    <button id="btn-publish-dist" class="btn">📦 Publier les épisodes</button>
+    <button id="btn-trigger" class="btn">🚀 Déclencher l'action GitHub</button>
+    <button id="btn-sync" class="btn ghost">🔄 Rafraîchir depuis GitHub</button>
+  </div>
+  <div id="gen-status" class="status" hidden></div>
+</section>
+
+<section class="card">
+  <h2>🎧 Épisodes</h2>
+  <div id="episodes-list"><p class="loading">Chargement…</p></div>
+</section>
+{% endblock %}

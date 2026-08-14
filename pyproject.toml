@@ -1,0 +1,39 @@
+[project]
+name = "myop"
+version = "0.1.0"
+description = "MYOP — My Own Podcast : ton briefing podcast quotidien, livré chaque jour sur ton lecteur de podcast"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "httpx>=0.27",
+    "feedparser>=6.0",
+    "beautifulsoup4>=4.12",
+    "edge-tts>=6.1",
+    "pydub>=0.25",
+    "feedgen>=1.0",
+    "pydantic>=2.6",
+    "PyYAML>=6.0",
+    "qrcode[pil]>=7.4",
+    "Pillow>=10.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+myop = "app.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

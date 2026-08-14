@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Réglages{% endblock %}
+{% block page %}settings{% endblock %}
+{% block content %}
+<h1>Réglages du podcast</h1>
+
+<form id="settings-form" class="card">
+  <h2>Identité</h2>
+  <div class="grid2">
+    <label>Titre
+      <input name="title" value="{{ config.title }}" required maxlength="80">
+    </label>
+    <label>Auteur
+      <input name="author" value="{{ config.author }}" maxlength="60">
+    </label>
+    <label>Email (contact flux iTunes)
+      <input name="email" type="email" value="{{ config.email }}">
+    </label>
+    <label>Catégorie iTunes
+      <input name="category" value="{{ config.category }}" placeholder="News, Technology, Sports…">
+    </label>
+  </div>
+  <label>Description
+    <textarea name="description" rows="2" maxlength="300">{{ config.description }}</textarea>
+  </label>
+
+  <h2>Voix &amp; rythme</h2>
+  <div class="grid2">
+    <label>Voix
+      <div class="row">
+        <select name="voice" id="voice-select">
+          <option value="{{ config.voice }}">{{ config.voice }}</option>
+        </select>
+        <button type="button" id="voice-preview" class="btn ghost">▶ Écouter</button>
+      </div>
+    </label>
+    <label>Heure de livraison (Paris)
+      <input name="delivery_hour" type="time" value="{{ config.delivery_hour }}">
+    </label>
+    <label>Débit intro/outro
+      <input name="intro_rate" value="{{ config.intro_rate }}" placeholder="-8%">
+    </label>
+    <label>Débit brèves
+      <input name="brief_rate" value="{{ config.brief_rate }}" placeholder="+4%">
+    </label>
+  </div>
+
+  <h2>Contenu de l'épisode</h2>
+  <div class="grid2">
+    <label>Nombre de titres (flash)
+      <input name="num_headlines" type="number" min="1" max="30" value="{{ config.num_headlines }}">
+    </label>
+    <label>Nombre de brèves détaillées
+      <input name="num_briefs" type="number" min="0" max="10" value="{{ config.num_briefs }}">
+    </label>
+    <label>Résumé max (caractères)
+      <input name="max_brief_chars" type="number" min="100" max="2000" step="50" value="{{ config.max_brief_chars }}">
+    </label>
+    <label>Max d'articles par source
+      <input name="max_per_source" type="number" min="1" max="10" value="{{ config.max_per_source }}">
+    </label>
+  </div>
+  <label class="checkbox">
+    <input type="checkbox" name="skip_if_empty" {% if config.skip_if_empty %}checked{% endif %}>
+    Pas d'épisode s'il n'y a aucun nouvel article
+  </label>
+
+  <div class="actions">
+    <button type="submit" class="btn primary">💾 Enregistrer</button>
+    <span class="hint">L'heure de livraison met à jour le workflow GitHub.</span>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Sources{% endblock %}
+{% block page %}sources{% endblock %}
+{% block content %}
+<h1>Sources RSS</h1>
+
+<form id="add-source" class="card row">
+  <input name="name" placeholder="Nom (ex : Le Monde — À la une)" required maxlength="60">
+  <input name="url" placeholder="https://…/feed.xml" required class="grow">
+  <button type="submit" class="btn primary">＋ Ajouter</button>
+</form>
+
+<div id="sources-list" class="card">
+  <p class="loading">Chargement…</p>
+</div>
+
+<div id="preview-box" class="card" hidden>
+  <h2 id="preview-title"></h2>
+  <ul id="preview-items"></ul>
+</div>
+{% endblock %}
