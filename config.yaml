@@ -29,13 +29,11 @@ sources:
 - name: France Culture — Idées
   url: https://www.radiofrance.fr/franceculture/rss
   priority: 1
-# Rédaction du script par IA via OpenRouter (clé dans .openrouter_api_key,
-# non versionné). En cas d'échec : repli automatique sur le script déterministe.
 ai:
   enabled: true
   model: google/gemini-3.6-flash
   key_file: .openrouter_api_key
 github:
-  repo: null
-  pages_base: null
+  repo: rlacotte/myop
+  pages_base: https://rlacotte.github.io/myop/
   private: false
