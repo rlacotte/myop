@@ -68,6 +68,16 @@ LIBRARY: dict[str, list[dict]] = {
         {"name": "Journal du Coin", "url": "https://journalducoin.com/feed/"},
         {"name": "Cointribune", "url": "https://cointribune.com/feed/"},
     ],
+    "International (traduit par l'IA)": [
+        {"name": "The Guardian — World 🇬🇧", "url": "https://www.theguardian.com/world/rss"},
+        {"name": "BBC News — World 🇬🇧", "url": "https://feeds.bbci.co.uk/news/world/rss.xml"},
+        {"name": "El País — Portada 🇪🇸", "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada"},
+        {"name": "Al Jazeera — News 🇶🇦", "url": "https://www.aljazeera.com/xml/rss/all.xml"},
+        {"name": "SRF — Actualités 🇨🇭", "url": "https://www.srf.ch/news/bnf/rss/1646"},
+        {"name": "Le Devoir 🇨🇦", "url": "https://www.ledevoir.com/rss/ledevoir.xml"},
+        {"name": "Radio-Canada — International 🇨🇦", "url": "https://ici.radio-canada.ca/rss/4159"},
+        {"name": "Euronews — Actualités", "url": "https://www.euronews.com/rss?level=theme&name=news"},
+    ],
 }
 
 

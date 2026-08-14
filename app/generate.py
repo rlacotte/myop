@@ -1,4 +1,9 @@
-"""Pipeline complet d'un épisode : collecte → script → voix → MP3 → flux."""
+"""Pipeline complet d'un épisode : collecte → script → voix → MP3 → flux.
+
+Une « génération » concerne UNE émission (show). Le module expose aussi
+build_draft() pour préparer le script sans le synthétiser (éditeur du
+dashboard), puis render pour finaliser.
+"""
 
 from __future__ import annotations
 
@@ -8,14 +13,18 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .config import Config
-from .feed import write_feed
-from .script import PARIS, build_script, episode_description, episode_title
+from . import feedback as feedback_mod
+from . import reading as reading_mod
+from .chapters import write_chapters
+from .config import Config, Show
+from .ephemeris import ephemeris_text
+from .feed import feed_filename, write_feed, write_index
+from .script import PARIS, Segment, build_script, episode_description, episode_title
 from .sources import fetch_items
 from .tts import synthesize
+from .weather import fetch_weather, weather_text
 
 DIST_DIR = Path(__file__).resolve().parent.parent / "dist"
-ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 SEEN_LIMIT = 3000  # taille max de l'historique de dédoublonnage
 
 
@@ -24,6 +33,7 @@ class GenerationResult:
     """Bilan d'une génération."""
 
     ok: bool
+    show_id: str = ""
     reason: str = ""
     episode_id: str | None = None
     episode_path: Path | None = None
@@ -32,11 +42,38 @@ class GenerationResult:
     titles: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     ai_used: bool = False
+    chapter_titles: list[str] = field(default_factory=list)
+    reading_count: int = 0
 
 
-def load_seen(dist_dir: Path) -> set[str]:
-    """Historique des articles déjà diffusés (clés stables)."""
-    seen_file = dist_dir / "seen.json"
+@dataclass
+class Draft:
+    """Script préparé (avant synthèse) — base de l'éditeur du dashboard."""
+
+    show_id: str
+    episode_id: str
+    title: str
+    description: str
+    segments: list[Segment]
+    titles: list[str]
+    ai_used: bool
+    warnings: list[str] = field(default_factory=list)
+    # Contexte nécessaire au rendu final
+    items_keys: list[str] = field(default_factory=list)  # pour l'historisation
+    reading_items: list = field(default_factory=list)
+
+
+def _seen_path(dist_dir: Path, show: Show) -> Path:
+    return dist_dir / f"seen-{show.id}.json"
+
+
+def load_seen(dist_dir: Path, show: Show) -> set[str]:
+    """Historique des articles déjà diffusés (avec héritage de l'ancien format)."""
+    seen_file = _seen_path(dist_dir, show)
+    if not seen_file.exists() and show.id == "matin":
+        legacy = dist_dir / "seen.json"  # format mono-émission
+        if legacy.exists():
+            seen_file = legacy
     if not seen_file.exists():
         return set()
     try:
@@ -45,16 +82,16 @@ def load_seen(dist_dir: Path) -> set[str]:
         return set()
 
 
-def save_seen(dist_dir: Path, seen: set[str]) -> None:
+def save_seen(dist_dir: Path, show: Show, seen: set[str]) -> None:
     """Persiste l'historique, plafonnée pour rester légère."""
     kept = sorted(seen)[-SEEN_LIMIT:]
-    seen_file = dist_dir / "seen.json"
+    seen_file = _seen_path(dist_dir, show)
     seen_file.parent.mkdir(parents=True, exist_ok=True)
     seen_file.write_text(json.dumps(kept, ensure_ascii=False), encoding="utf-8")
 
 
 def _load_font(size: int):
-    """Police système pour la pochette (fallback multi-OS)."""
+    """Police système pour les pochettes (fallback multi-OS)."""
     from PIL import ImageFont
 
     for candidate in [
@@ -70,7 +107,7 @@ def _load_font(size: int):
         return ImageFont.load_default()
 
 
-def make_cover(config: Config, out_path: Path) -> Path:
+def make_cover(title: str, out_path: Path, subtitle: str = "ton briefing quotidien") -> Path:
     """Pochette 1400×1400 (titre sur fond dégradé) si absente."""
     from PIL import Image, ImageDraw
 
@@ -98,7 +135,7 @@ def make_cover(config: Config, out_path: Path) -> Path:
     draw.text((70, 120), "MYOP", fill=(150, 200, 255), font=_load_font(90))
     # Titre centré, retour à la ligne automatique
     font = _load_font(170)
-    words = config.title.split()
+    words = title.split()
     lines, line = [], ""
     for word in words:
         trial = f"{line} {word}".strip()
@@ -112,61 +149,46 @@ def make_cover(config: Config, out_path: Path) -> Path:
     for text_line in lines[:3]:
         draw.text((70, y), text_line, fill=(255, 255, 255), font=font)
         y += 200
-    draw.text((70, size - 130), "ton briefing quotidien", fill=(200, 190, 230), font=_load_font(64))
+    draw.text((70, size - 130), subtitle, fill=(200, 190, 230), font=_load_font(64))
 
     image.save(out_path, "PNG")
     return out_path
 
 
-def write_index(config: Config, dist_dir: Path) -> None:
-    """Mini page d'accueil GitHub Pages : lien d'abonnement + QR code."""
-    import base64
-    import io
+async def _collect_day(
+    config: Config, show: Show, dist_dir: Path, now: datetime, ignore_seen: bool = False
+):
+    """Collecte articles + météo + éphéméride + liste de lecture du jour."""
+    feedback = feedback_mod.load_feedback(dist_dir)
+    ranker = (lambda items: feedback_mod.apply_feedback(items, feedback)) if (
+        feedback.source_scores or feedback.disliked_keywords
+    ) else None
 
-    import qrcode
+    seen = set() if ignore_seen else load_seen(dist_dir, show)
+    fetched = await fetch_items(show, now=now.astimezone(ZoneInfo("UTC")), seen=seen, ranker=ranker)
 
-    feed_url = config.feed_url
-    qr_data = ""
-    if feed_url:
-        img = qrcode.make(feed_url, box_size=8, border=2)
-        buffer = io.BytesIO()
-        img.save(buffer, format="PNG")
-        qr_data = base64.b64encode(buffer.getvalue()).decode()
-        qr_tag = f'<img class="qr" alt="QR code d’abonnement" src="data:image/png;base64,{qr_data}">'
-        link = f'<p><a href="podcast.xml">{feed_url}</a></p>'
-    else:
-        qr_tag, link = "", "<p>Flux pas encore publié — lance <code>myop setup</code>.</p>"
-
-    html = f"""<!doctype html>
-<html lang="fr"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{config.title}</title>
-<style>
- body {{ margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        background:linear-gradient(160deg,#121430,#582c82); color:#fff; min-height:100vh;
-        display:flex; align-items:center; justify-content:center; }}
- .card {{ text-align:center; padding:48px; max-width:520px; }}
- h1 {{ font-size:2.4rem; margin:.2em 0 .4em; }}
- a {{ color:#9fd0ff; word-break:break-all; }}
- .qr {{ background:#fff; padding:12px; border-radius:12px; margin:20px 0; width:220px; }}
- p {{ color:#d8d2ee; line-height:1.5; }}
- code {{ background:rgba(255,255,255,.15); padding:2px 6px; border-radius:6px; }}
-</style></head>
-<body><div class="card">
- <img src="cover.png" alt="pochette" style="width:180px;border-radius:16px">
- <h1>{config.title}</h1>
- <p>{config.description}</p>
- {link}
- {qr_tag}
- <p>Scan le QR code ou copie l'URL dans ton lecteur de podcast<br>
- (Apple Podcasts, Overcast, Pocket Casts…).</p>
-</div></body></html>"""
-    (dist_dir / "index.html").write_text(html, encoding="utf-8")
+    weather = await fetch_weather(show.weather_city) if show.weather_city else None
+    weather_line = weather_text(weather) if weather else ""
+    ephemeris_line = ephemeris_text(now) if show.ephemeris else ""
+    reading_items = (
+        reading_mod.take_for_episode(dist_dir, config.reading.max_items)
+        if config.reading.enabled
+        else []
+    )
+    return fetched, weather, weather_line, ephemeris_line, reading_items
 
 
 async def _compose_script(
-    config: Config, items: list, now: datetime, result: GenerationResult
-) -> list:
+    config: Config,
+    show: Show,
+    fetched,
+    now: datetime,
+    weather,
+    weather_line: str,
+    ephemeris_line: str,
+    reading_items: list,
+    warnings: list[str],
+) -> tuple[list[Segment], bool]:
     """Script IA si activée et disponible, sinon script déterministe.
 
     L'IA ne doit jamais bloquer la production : tout échec retombe
@@ -177,64 +199,150 @@ async def _compose_script(
 
         if load_api_key(config):
             try:
-                segments = await ai_script(config, items, now=now)
+                segments = await ai_script(
+                    show,
+                    config,
+                    fetched.selected,
+                    now=now,
+                    weather_line=weather_line,
+                    ephemeris_line=ephemeris_line,
+                    reading_items=reading_items,
+                )
             except Exception as exc:  # réseau, HTTP, quota… on continue sans IA
-                result.warnings.append(
+                warnings.append(
                     f"IA en échec ({exc.__class__.__name__}) → script déterministe"
                 )
                 segments = None
             if segments:
-                result.ai_used = True
-                return segments
-            result.warnings.append("Réponse IA inutilisable → script déterministe")
+                return segments, True
+            warnings.append("Réponse IA inutilisable → script déterministe")
         else:
-            result.warnings.append(
+            warnings.append(
                 "IA activée mais clé absente (.openrouter_api_key) → script déterministe"
             )
-    return build_script(config, items, now=now)
+    return (
+        build_script(
+            show,
+            fetched.selected,
+            now=now,
+            weather=weather,
+            weather_line=weather_line,
+            ephemeris_line=ephemeris_line,
+            reading_items=reading_items,
+        ),
+        False,
+    )
+
+
+async def build_draft(
+    config: Config,
+    show: Show,
+    dist_dir: Path | None = None,
+    *,
+    now: datetime | None = None,
+) -> Draft:
+    """Prépare le script de l'épisode sans le synthétiser (éditeur dashboard)."""
+    dist_dir = dist_dir or DIST_DIR
+    now = now or datetime.now(tz=PARIS)
+    fetched, weather, weather_line, ephemeris_line, reading_items = await _collect_day(
+        config, show, dist_dir, now
+    )
+    warnings = [f"Source inaccessible — {e}" for e in fetched.errors]
+    segments, ai_used = await _compose_script(
+        config, show, fetched, now, weather, weather_line, ephemeris_line,
+        reading_items, warnings,
+    )
+    return Draft(
+        show_id=show.id,
+        episode_id=now.astimezone(PARIS).date().isoformat(),
+        title=episode_title(show, now),
+        description=episode_description(fetched.selected[: show.num_headlines]),
+        segments=segments,
+        titles=[item.title for item in fetched.selected[: show.num_headlines]],
+        ai_used=ai_used,
+        warnings=warnings,
+        items_keys=fetched.all_keys,
+        reading_items=reading_items,
+    )
+
+
+def _publish_statics(config: Config, dist_dir: Path) -> None:
+    """Flux de toutes les émissions + pochettes + page publique."""
+    for show in config.shows:
+        if not show.enabled:
+            continue
+        first = next((s for s in config.shows if s.enabled), None)
+        is_first = bool(first and show.id == first.id)
+        cover_name = "cover.png" if is_first else f"cover-{show.id}.png"
+        make_cover(show.title, dist_dir / cover_name)
+        try:
+            write_feed(config, show, dist_dir)
+        except RuntimeError as exc:  # pages_base absent : premier setup
+            pass
+    try:
+        write_index(config, dist_dir)
+    except RuntimeError:
+        pass
 
 
 async def generate_episode(
     config: Config,
+    show: Show,
     dist_dir: Path | None = None,
     *,
     now: datetime | None = None,
     ignore_seen: bool = False,
+    draft: Draft | None = None,
 ) -> GenerationResult:
-    """Génère l'épisode du jour et reconstruit le flux. Aucun réseau côté publication.
+    """Génère l'épisode du jour d'une émission et reconstruit tous les flux.
 
-    `ignore_seen` : ignorer l'historique (régénérer même sans nouvel article).
+    `draft` : script préparé (voire édité à la main) via build_draft().
     """
     dist_dir = dist_dir or DIST_DIR
     now = now or datetime.now(tz=PARIS)
-    episodes_dir = dist_dir / "episodes"
+    result = GenerationResult(ok=False, show_id=show.id)
+    episodes_dir = dist_dir / "episodes" / show.id
     episodes_dir.mkdir(parents=True, exist_ok=True)
 
-    seen = set() if ignore_seen else load_seen(dist_dir)
-    fetched = await fetch_items(config, now=now.astimezone(ZoneInfo("UTC")), seen=seen)
-    result = GenerationResult(
-        ok=False, warnings=[f"Source inaccessible — {e}" for e in fetched.errors]
-    )
-
-    if not fetched.selected:
-        result.reason = (
-            "Aucun nouvel article dans les dernières 24 h "
-            f"({len(fetched.errors)} source(s) en échec)."
+    if draft is not None:
+        fetched = type("F", (), {"selected": [], "all_keys": draft.items_keys, "errors": []})()
+        weather_line, segments, ai_used = "", draft.segments, draft.ai_used
+        result.warnings = list(draft.warnings)
+        reading_items = draft.reading_items
+        titles = draft.titles
+        description, title = draft.description, draft.title
+    else:
+        fetched, weather, weather_line, ephemeris_line, reading_items = await _collect_day(
+            config, show, dist_dir, now, ignore_seen
         )
-        return result
+        result.warnings = [f"Source inaccessible — {e}" for e in fetched.errors]
+        if not fetched.selected:
+            result.reason = (
+                "Aucun nouvel article dans les dernières 24 h "
+                f"({len(fetched.errors)} source(s) en échec)."
+            )
+            return result
+        segments, ai_used = await _compose_script(
+            config, show, fetched, now, weather, weather_line, ephemeris_line,
+            reading_items, result.warnings,
+        )
+        titles = [item.title for item in fetched.selected[: show.num_headlines]]
+        description = episode_description(fetched.selected[: show.num_headlines])
+        title = episode_title(show, now)
 
     # Épisode du jour (une seule édition par date : regénérer remplace le fichier)
     episode_id = now.astimezone(PARIS).date().isoformat()
-    segments = await _compose_script(config, fetched.selected, now, result)
     mp3_path = episodes_dir / f"{episode_id}.mp3"
-    mp3_path, duration = await synthesize(segments, config.voice, mp3_path)
+    synth = await synthesize(segments, show, config, mp3_path)
+    if config.audio.chapters:
+        write_chapters(mp3_path, synth.chapters)
 
     meta = {
         "id": episode_id,
-        "title": episode_title(now),
-        "description": episode_description(fetched.selected[: config.num_headlines]),
+        "title": title,
+        "description": description,
         "pubDate": now.astimezone(PARIS).isoformat(),
-        "duration": duration,
+        "duration": synth.duration_seconds,
         "size": mp3_path.stat().st_size,
     }
     (episodes_dir / f"{episode_id}.json").write_text(
@@ -242,18 +350,17 @@ async def generate_episode(
     )
 
     # Historisation : tout ce qui a été vu aujourd'hui ne reviendra pas demain
-    save_seen(dist_dir, seen | set(fetched.all_keys))
+    save_seen(dist_dir, show, load_seen(dist_dir, show) | set(fetched.all_keys))
 
-    # Flux + pochette + page d'accueil
-    make_cover(config, dist_dir / "cover.png")
-    if config.feed_url:
-        write_feed(config, dist_dir)
-        write_index(config, dist_dir)
+    _publish_statics(config, dist_dir)
 
     result.ok = True
     result.episode_id = episode_id
     result.episode_path = mp3_path
-    result.duration = duration
+    result.duration = synth.duration_seconds
     result.size = meta["size"]
-    result.titles = [item.title for item in fetched.selected[: config.num_headlines]]
+    result.titles = titles
+    result.ai_used = ai_used
+    result.chapter_titles = [chapter["title"] for chapter in synth.chapters]
+    result.reading_count = len(reading_items)
     return result

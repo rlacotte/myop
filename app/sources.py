@@ -17,7 +17,7 @@ import feedparser
 import httpx
 from bs4 import BeautifulSoup
 
-from .config import Config, Source
+from .config import Show
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -175,27 +175,21 @@ def _similar(a: set[str], b: set[str], threshold: float = 0.5, min_overlap: int 
     return len(overlap) / len(union) >= threshold
 
 
-def _select(items: list[FeedItem], config: Config) -> list[FeedItem]:
-    """Trie par fraîcheur puis sélectionne en respectant max_per_source.
+def _select(items: list[FeedItem], show: Show) -> list[FeedItem]:
+    """Sélectionne dans l'ordre fourni en respectant max_per_source.
 
     Les quasi-doublons (même info reprise par plusieurs médias sous des
     titres différents) sont écartés par similarité de titres.
     """
-    # Les plus récents d'abord ; les items sans date passent en dernier.
-    ordered = sorted(
-        items,
-        key=lambda i: (i.published is not None, i.published or datetime.min.replace(tzinfo=timezone.utc)),
-        reverse=True,
-    )
     selected: list[FeedItem] = []
     signatures: list[set[str]] = []
     per_source: dict[str, int] = {}
-    wanted = config.num_headlines
-    for item in ordered:
+    wanted = show.num_headlines
+    for item in items:
         if len(selected) >= wanted:
             break
         count = per_source.get(item.source_name, 0)
-        if count >= config.max_per_source:
+        if count >= show.max_per_source:
             continue
         signature = title_tokens(item.title)
         if any(_similar(signature, existing) for existing in signatures):
@@ -207,21 +201,24 @@ def _select(items: list[FeedItem], config: Config) -> list[FeedItem]:
 
 
 async def fetch_items(
-    config: Config,
+    show: Show,
     *,
     now: datetime | None = None,
     seen: set[str] | None = None,
     client: httpx.AsyncClient | None = None,
+    ranker=None,
 ) -> FetchResult:
-    """Collecte tous les flux, filtre, dédoublonne et sélectionne les items.
+    """Collecte tous les flux du show, filtre, dédoublonne et sélectionne.
 
     - fenêtre de 24 h, élargie à 48 h si trop peu d'items
     - les clés déjà présentes dans `seen` sont ignorées
+    - `ranker` (option) reclasse les items frais avant sélection
+      (utilisé par la boucle de goût)
     """
     now = now or datetime.now(timezone.utc)
     seen = seen or set()
     result = FetchResult()
-    if not config.sources:
+    if not show.sources:
         return result
 
     own_client = client is None
@@ -231,7 +228,7 @@ async def fetch_items(
         )
     try:
         fetched = await asyncio.gather(
-            *[_fetch_one(client, source) for source in config.sources]
+            *[_fetch_one(client, source) for source in show.sources]
         )
     finally:
         if own_client:
@@ -259,5 +256,13 @@ async def fetch_items(
         if len(fresh) >= 3 or window == timedelta(hours=48):
             break
 
-    result.selected = _select(fresh, config)
+    # Les plus récents d'abord ; les items sans date passent en dernier.
+    ordered = sorted(
+        fresh,
+        key=lambda i: (i.published is not None, i.published or datetime.min.replace(tzinfo=timezone.utc)),
+        reverse=True,
+    )
+    if ranker is not None:
+        ordered = ranker(ordered)  # la boucle de goût départage à fraîcheur égale
+    result.selected = _select(ordered, show)
     return result

@@ -1,16 +1,19 @@
-name: Épisode quotidien
+name: Épisodes du jour
 
 on:
   schedule:
-    # Heure de livraison (UTC) — ajustée automatiquement par `myop setup`
-    # 30 5 * * * ≈ 7h30 à Paris en été
-    - cron: "30 5 * * *"
+    # Vérification horaire : MYOP génère les émissions dues à cette heure-ci
+    # (delivery_hour de chaque show, heure de Paris). Coût négligeable (~1 min/h).
+    - cron: "26 * * * *"
   workflow_dispatch:
     inputs:
       force:
-        description: "Régénérer l'épisode du jour même sans nouvel article"
+        description: "Régénérer les épisodes du jour même sans nouvel article"
         type: boolean
         default: false
+      show:
+        description: "Une seule émission (id), vide = toutes"
+        default: ""
 
 permissions:
   contents: write
@@ -40,11 +43,20 @@ jobs:
       - name: Installer les dépendances Python
         run: uv sync
 
-      - name: Générer et publier l'épisode du jour
+      - name: Générer et publier les épisodes
         env:
           # Rédaction IA via OpenRouter (facultatif : repli déterministe sinon)
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           git config user.name  "myop-bot"
           git config user.email "myop-bot@users.noreply.github.com"
-          uv run myop generate --publish ${{ inputs.force && '--fresh' || '' }}
+          ARGS="--publish"
+          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --fresh"; fi
+          if [ -n "${{ inputs.show }}" ]; then
+            ARGS="$ARGS --show ${{ inputs.show }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ARGS="$ARGS --all"  # déclenchement manuel : toutes les émissions
+          else
+            ARGS="$ARGS --due"  # cron horaire : seulement les émissions de l'heure
+          fi
+          uv run myop generate $ARGS

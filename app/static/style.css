@@ -50,6 +50,18 @@ nav a {
 nav a:hover { color: var(--text); background: rgba(255, 255, 255, 0.08); }
 nav a.active { color: #121430; background: linear-gradient(120deg, var(--accent), var(--accent2)); font-weight: 600; }
 
+/* Barre des émissions */
+.showbar { background: rgba(0, 0, 0, 0.2); border-bottom: 1px solid var(--card-border); }
+.showbar .wrap { max-width: 880px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.showbar-label { color: var(--muted); font-size: 0.85rem; }
+.show-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.show-tab {
+  color: var(--muted); text-decoration: none; padding: 6px 14px; border-radius: 10px;
+  font-size: 0.9rem; border: 1px solid transparent;
+}
+.show-tab:hover { color: var(--text); background: rgba(255, 255, 255, 0.08); }
+.show-tab.active { color: var(--text); border-color: var(--accent); background: rgba(159, 208, 255, 0.12); }
+
 main { max-width: 880px; margin: 0 auto; padding: 28px 20px 80px; }
 
 h1 { font-size: 1.6rem; margin: 8px 0 20px; }
@@ -228,3 +240,24 @@ input[readonly] { opacity: 0.75; }
 }
 #toast.err { border-color: var(--err); color: var(--err); }
 #toast.ok { border-color: var(--ok); color: var(--ok); }
+
+/* Éditeur de script */
+.draft-segment { display: block; margin-bottom: 12px; }
+.draft-segment .kind {
+  display: inline-block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 3px 10px; border-radius: 999px; margin-bottom: 4px;
+  background: rgba(159, 208, 255, 0.15); color: var(--accent);
+}
+.kind-meteo { background: rgba(124, 232, 176, 0.15); color: var(--ok); }
+.kind-brief { background: rgba(195, 155, 255, 0.15); color: var(--accent2); }
+.kind-reading { background: rgba(255, 216, 131, 0.15); color: #ffd883; }
+.draft-segment textarea { font-size: 0.95rem; line-height: 1.5; }
+
+/* Boucle de goût */
+.vote { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.vote-chip { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; }
+.vote-chip .vt { color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn.tiny { padding: 2px 8px; font-size: 0.8rem; }
+
+.badge-ok { color: var(--ok); }
+.badge-ko { color: var(--err); }

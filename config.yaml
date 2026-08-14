@@ -1,140 +1,140 @@
-title: Mon Briefing
-description: L'essentiel de l'actualité, résumé chaque matin en quelques minutes.
+# Configuration MYOP — plusieurs émissions possibles (shows), réglages partagés
 language: fr-FR
 author: Moi
 email: moi@example.com
 category: News
-voice: fr-FR-RemyMultilingualNeural
-intro_rate: -8%
-brief_rate: +4%
-num_headlines: 12
-num_briefs: 5
-max_brief_chars: 450
-max_per_source: 3
 skip_if_empty: true
-delivery_hour: 07:30
-sources:
-- name: Le Monde — À la une
-  url: https://www.lemonde.fr/rss/une.xml
-  priority: 1
-- name: franceinfo — Titres
-  url: https://www.francetvinfo.fr/titres.rss
-  priority: 1
-- name: Europe 1 — Actualités
-  url: https://www.europe1.fr/rss.xml
-  priority: 1
-- name: 20 Minutes — Une
-  url: https://www.20minutes.fr/feeds/rss-une.xml
-  priority: 1
-- name: France 24 — Actualités
-  url: https://www.france24.com/fr/rss
-  priority: 1
-- name: Libération — Une
-  url: https://www.liberation.fr/arc/outboundfeeds/rss/
-  priority: 1
-- name: Ouest-France — À la une
-  url: https://www.ouest-france.fr/rss-en-continu.xml
-  priority: 1
-- name: Le Monde — Politique
-  url: https://www.lemonde.fr/politique/rss_full.xml
-  priority: 1
-- name: franceinfo — Politique
-  url: https://www.francetvinfo.fr/politique.rss
-  priority: 1
-- name: Le Monde — Société
-  url: https://www.lemonde.fr/societe/rss_full.xml
-  priority: 1
-- name: Le Monde — International
-  url: https://www.lemonde.fr/international/rss_full.xml
-  priority: 1
-- name: RFI — Monde
-  url: https://www.rfi.fr/fr/rss
-  priority: 1
-- name: Le Monde — Économie
-  url: https://www.lemonde.fr/economie/rss_full.xml
-  priority: 1
-- name: La Tribune — Actualités
-  url: https://www.latribune.fr/rss/rubriques/actualite.html
-  priority: 1
-- name: Investing.com — Marchés
-  url: https://fr.investing.com/rss/news.rss
-  priority: 1
-- name: NextINpact — Numérique
-  url: https://www.nextinpact.com/rss
-  priority: 1
-- name: Numerama
-  url: https://www.numerama.com/feed/
-  priority: 1
-- name: 01net — Actualités
-  url: https://www.01net.com/actualites/feed/
-  priority: 1
-- name: Clubic — News
-  url: https://www.clubic.com/feed/news.rss
-  priority: 1
-- name: Frandroid
-  url: https://www.frandroid.com/feed
-  priority: 1
-- name: Le Monde — Big Browser
-  url: https://www.lemonde.fr/big-browser/rss_full.xml
-  priority: 1
-- name: Le Monde — Sciences
-  url: https://www.lemonde.fr/sciences/rss_full.xml
-  priority: 1
-- name: CNRS — Le Journal
-  url: https://lejournal.cnrs.fr/rss
-  priority: 1
-- name: Futura Sciences
-  url: https://www.futura-sciences.com/rss/actualites.xml
-  priority: 1
-- name: Maxi Sciences
-  url: https://www.maxisciences.com/rss.xml
-  priority: 1
-- name: France Culture — Idées
-  url: https://www.radiofrance.fr/franceculture/rss
-  priority: 1
-- name: Le Monde — Livres
-  url: https://www.lemonde.fr/livres/rss_full.xml
-  priority: 1
-- name: Les Inrocks
-  url: https://www.lesinrocks.com/feed/
-  priority: 1
-- name: Le Monde — Idées
-  url: https://www.lemonde.fr/idees/rss_full.xml
-  priority: 1
-- name: AOC — Analyse & opinion
-  url: https://aoc.media/feed/
-  priority: 1
-- name: L'Équipe — Cyclisme
-  url: https://dwh.lequipe.fr/api/edito/rss?path=/Cyclisme/
-  priority: 1
-- name: Le Monde — Sport
-  url: https://www.lemonde.fr/sport/rss_full.xml
-  priority: 1
-- name: 20 Minutes — Sport
-  url: https://www.20minutes.fr/feeds/rss-sport.xml
-  priority: 1
-- name: Le Monde — Planète
-  url: https://www.lemonde.fr/planete/rss_full.xml
-  priority: 1
-- name: Reporterre — Écologie
-  url: https://reporterre.net/spip.php?page=backend
-  priority: 1
-- name: Le Monde — Santé
-  url: https://www.lemonde.fr/sante/rss_full.xml
-  priority: 1
-- name: Le Quotidien du Médecin
-  url: https://www.lequotidiendumedecin.fr/rss.xml
-  priority: 1
-- name: Journal du Coin
-  url: https://journalducoin.com/feed/
-  priority: 1
-- name: Cointribune
-  url: https://cointribune.com/feed/
-  priority: 1
+
+shows:
+- id: matin
+  title: Mon Briefing
+  description: L'essentiel de l'actualité, résumé chaque matin en quelques minutes.
+  enabled: true
+  delivery_hour: 07:30
+  voice: fr-FR-RemyMultilingualNeural
+  voice_co: null
+  intro_rate: -8%
+  brief_rate: +4%
+  num_headlines: 12
+  num_briefs: 5
+  max_brief_chars: 450
+  max_per_source: 3
+  weather_city: Paris
+  ephemeris: true
+  sources:
+  # — Généralistes —
+  - name: Le Monde — À la une
+    url: https://www.lemonde.fr/rss/une.xml
+  - name: franceinfo — Titres
+    url: https://www.francetvinfo.fr/titres.rss
+  - name: Europe 1 — Actualités
+    url: https://www.europe1.fr/rss.xml
+  - name: 20 Minutes — Une
+    url: https://www.20minutes.fr/feeds/rss-une.xml
+  - name: France 24 — Actualités
+    url: https://www.france24.com/fr/rss
+  - name: Libération — Une
+    url: https://www.liberation.fr/arc/outboundfeeds/rss/
+  - name: Ouest-France — À la une
+    url: https://www.ouest-france.fr/rss-en-continu.xml
+  # — Politique & société —
+  - name: Le Monde — Politique
+    url: https://www.lemonde.fr/politique/rss_full.xml
+  - name: franceinfo — Politique
+    url: https://www.francetvinfo.fr/politique.rss
+  - name: Le Monde — Société
+    url: https://www.lemonde.fr/societe/rss_full.xml
+  # — International —
+  - name: Le Monde — International
+    url: https://www.lemonde.fr/international/rss_full.xml
+  - name: RFI — Monde
+    url: https://www.rfi.fr/fr/rss
+  # — Économie & finance —
+  - name: Le Monde — Économie
+    url: https://www.lemonde.fr/economie/rss_full.xml
+  - name: La Tribune — Actualités
+    url: https://www.latribune.fr/rss/rubriques/actualite.html
+  - name: Investing.com — Marchés
+    url: https://fr.investing.com/rss/news.rss
+  # — Tech & numérique —
+  - name: NextINpact — Numérique
+    url: https://www.nextinpact.com/rss
+  - name: Numerama
+    url: https://www.numerama.com/feed/
+  - name: 01net — Actualités
+    url: https://www.01net.com/actualites/feed/
+  - name: Clubic — News
+    url: https://www.clubic.com/feed/news.rss
+  - name: Frandroid
+    url: https://www.frandroid.com/feed
+  - name: Le Monde — Big Browser
+    url: https://www.lemonde.fr/big-browser/rss_full.xml
+  # — Sciences —
+  - name: Le Monde — Sciences
+    url: https://www.lemonde.fr/sciences/rss_full.xml
+  - name: CNRS — Le Journal
+    url: https://lejournal.cnrs.fr/rss
+  - name: Futura Sciences
+    url: https://www.futura-sciences.com/rss/actualites.xml
+  - name: Maxi Sciences
+    url: https://www.maxisciences.com/rss.xml
+  # — Culture & idées —
+  - name: France Culture — Idées
+    url: https://www.radiofrance.fr/franceculture/rss
+  - name: Le Monde — Livres
+    url: https://www.lemonde.fr/livres/rss_full.xml
+  - name: Les Inrocks
+    url: https://www.lesinrocks.com/feed/
+  - name: Le Monde — Idées
+    url: https://www.lemonde.fr/idees/rss_full.xml
+  - name: AOC — Analyse & opinion
+    url: https://aoc.media/feed/
+  # — Sport —
+  - name: L'Équipe — Cyclisme
+    url: https://dwh.lequipe.fr/api/edito/rss?path=/Cyclisme/
+  - name: Le Monde — Sport
+    url: https://www.lemonde.fr/sport/rss_full.xml
+  - name: 20 Minutes — Sport
+    url: https://www.20minutes.fr/feeds/rss-sport.xml
+  # — Environnement —
+  - name: Le Monde — Planète
+    url: https://www.lemonde.fr/planete/rss_full.xml
+  - name: Reporterre — Écologie
+    url: https://reporterre.net/spip.php?page=backend
+  # — Santé —
+  - name: Le Monde — Santé
+    url: https://www.lemonde.fr/sante/rss_full.xml
+  - name: Le Quotidien du Médecin
+    url: https://www.lequotidiendumedecin.fr/rss.xml
+  # — Crypto —
+  - name: Journal du Coin
+    url: https://journalducoin.com/feed/
+  - name: Cointribune
+    url: https://cointribune.com/feed/
+
+# Rédaction IA via OpenRouter (clé dans .openrouter_api_key, non versionné)
 ai:
   enabled: true
   model: google/gemini-3.6-flash
   key_file: .openrouter_api_key
+  persona: "rédacteur en chef d'un flash radio matinal : clair, vif, chaleureux, jamais sensationnaliste"
+  system_prompt: null
+
+# Habillage sonore
+audio:
+  jingle: true
+  chapters: true
+
+# Liste de lecture : des articles web à faire lire dans l'épisode
+reading:
+  enabled: true
+  max_items: 3
+
+# Statistiques (facultatif, ex. GoatCounter)
+analytics:
+  url: null
+
+# Rempli automatiquement par `myop setup`
 github:
   repo: rlacotte/myop
   pages_base: https://rlacotte.github.io/myop/

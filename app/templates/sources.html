@@ -2,7 +2,7 @@
 {% block title %}Sources{% endblock %}
 {% block page %}sources{% endblock %}
 {% block content %}
-<h1>Sources RSS</h1>
+<h1>Sources — <span id="show-title">{{ show.title }}</span></h1>
 
 <section class="card">
   <div class="row wrap library-bar">
@@ -10,9 +10,13 @@
            placeholder="🔍 Rechercher une source ou un domaine…">
     <span id="active-count" class="badge-big"></span>
   </div>
-  <p class="hint">Active les sources qui t'intéressent — le briefing piochera dedans chaque matin
-  (équilibre automatique entre les sources, doublons écartés). 8 à 12 sources donnent un épisode
-  équilibré ; au-delà, pense à augmenter le nombre de titres dans les Réglages.</p>
+  <div class="row wrap">
+    <button id="btn-health" class="btn small">🩺 Vérifier la santé des sources</button>
+    <a id="btn-opml-export" class="btn small ghost" download>⬇ Export OPML</a>
+    <button id="btn-opml-import" class="btn small ghost">⬆ Import OPML</button>
+    <input type="file" id="opml-file" accept=".opml,.xml" hidden>
+  </div>
+  <div id="health-box" class="status" hidden></div>
   <div id="library-list" class="library"><p class="loading">Chargement de la bibliothèque…</p></div>
 </section>
 

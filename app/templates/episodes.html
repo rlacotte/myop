@@ -2,21 +2,20 @@
 {% block title %}Épisodes{% endblock %}
 {% block page %}episodes{% endblock %}
 {% block content %}
-<h1>Épisodes &amp; abonnement</h1>
+<h1>Épisodes — <span id="show-title">{{ show.title }}</span></h1>
 
 <section class="card" id="subscribe-card">
   <h2>📲 Abonnement</h2>
-  {% if config.feed_url %}
+  {% if config.feed_url(show) %}
     <div class="row">
-      <input id="feed-url" readonly value="{{ config.feed_url }}" class="grow">
-      <button id="copy-url" class="btn ghost">Copier</button>
+      <input id="feed-url" readonly value="{{ config.feed_url(show) }}" class="grow">
+      <a class="btn" href="{{ config.pages_base }}" target="_blank">Page publique</a>
     </div>
     <div class="qr-wrap"><img id="qr" alt="QR code du flux" hidden></div>
-    <p class="hint">Scanne le QR code avec l'app Podcasts de ton iPhone, ou colle l'URL
-    dans Overcast / Pocket Casts / Apple Podcasts → « S'abonner par URL ».</p>
+    <p class="hint">Scanne le QR code ou ouvre la page publique : abonnement en un clic
+    (Apple Podcasts, Overcast, Pocket Casts) et lecteur web.</p>
   {% else %}
-    <p class="hint">Flux pas encore publié — lance <code>myop setup</code> dans le terminal
-    pour créer le repo GitHub et publier le premier épisode.</p>
+    <p class="hint">Flux pas encore publié — lance <code>myop setup</code> dans le terminal.</p>
   {% endif %}
 </section>
 
@@ -24,12 +23,45 @@
   <h2>🎙️ Génération</h2>
   <div class="row wrap">
     <button id="btn-generate" class="btn primary">⚡ Générer maintenant</button>
+    <button id="btn-draft" class="btn">📝 Préparer le script</button>
     <button id="btn-publish-config" class="btn">📤 Publier la config</button>
     <button id="btn-publish-dist" class="btn">📦 Publier les épisodes</button>
     <button id="btn-trigger" class="btn">🚀 Déclencher l'action GitHub</button>
     <button id="btn-sync" class="btn ghost">🔄 Rafraîchir depuis GitHub</button>
   </div>
+  <div class="row wrap" style="margin-top:12px">
+    <label style="margin:0">Rattrapage (date)
+      <div class="row">
+        <input id="gen-date" type="date" class="grow" style="width:170px">
+        <button id="btn-generate-date" class="btn small">Régénérer cette date</button>
+      </div>
+    </label>
+  </div>
   <div id="gen-status" class="status" hidden></div>
+</section>
+
+<section class="card" id="draft-card" hidden>
+  <h2>📝 Script de l'épisode <span class="hint" id="draft-meta"></span></h2>
+  <p class="hint">Relis et retouche le script avant la synthèse vocale, puis « Synthétiser ».</p>
+  <div id="draft-segments"></div>
+  <div class="row wrap">
+    <button id="btn-render" class="btn primary">🎧 Synthétiser cet épisode</button>
+    <button id="btn-draft-close" class="btn ghost">Fermer</button>
+  </div>
+</section>
+
+<section class="card">
+  <h2>📖 Liste de lecture <span class="hint">(articles lus dans le prochain épisode)</span></h2>
+  <form id="add-reading" class="row">
+    <input name="url" placeholder="https://… (URL d'un article à écouter)" required class="grow">
+    <button type="submit" class="btn primary">＋ Ajouter</button>
+  </form>
+  <div id="reading-list"></div>
+</section>
+
+<section class="card">
+  <h2>👎/👍 Boucle de goût <span class="hint">(pondère sources et sujets pour les prochains épisodes)</span></h2>
+  <div id="feedback-box" class="hint">Vote sur les titres des derniers épisodes générés ci-dessous.</div>
 </section>
 
 <section class="card">

@@ -52,7 +52,7 @@ def update_workflow_cron(delivery_hour: str, path: Path = WORKFLOW_PATH) -> None
 def fetch_existing(dist_dir: Path) -> None:
     """Récupère les métadonnées d'épisodes et l'historique publiés sur gh-pages.
 
-    Permet de reconstruire un flux complet (tous les épisodes) et d'éviter
+    Permet de reconstruire des flux complets (tous les épisodes) et d'éviter
     de rediffuser des articles déjà traités les jours précédents.
     """
     import json
@@ -69,18 +69,32 @@ def fetch_existing(dist_dir: Path) -> None:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(sh(["git", "show", f"FETCH_HEAD:{blob}"]), encoding="utf-8")
         elif blob == "seen.json":
-            remote = set(json.loads(sh(["git", "show", "FETCH_HEAD:seen.json"])))
-            local_file = dist_dir / "seen.json"
+            # Ancien format mono-émission → show « matin »
+            _merge_key_set(dist_dir / "seen-matin.json", sh(["git", "show", "FETCH_HEAD:seen.json"]))
+        elif blob.startswith("seen-") and blob.endswith(".json"):
+            _merge_key_set(dist_dir / blob, sh(["git", "show", f"FETCH_HEAD:{blob}"]))
+        elif blob in ("reading.json", "feedback.json"):
+            target = dist_dir / blob
+            if not target.exists():  # le local prime (file d'attente / votes récents)
+                target.write_text(sh(["git", "show", f"FETCH_HEAD:{blob}"]), encoding="utf-8")
+
+
+def _merge_key_set(local_file: Path, remote_content: str) -> None:
+    """Fusionne un historique distant avec le fichier local (union des clés)."""
+    import json
+
+    try:
+        remote = set(json.loads(remote_content))
+    except json.JSONDecodeError:
+        remote = set()
+    local = set()
+    if local_file.exists():
+        try:
+            local = set(json.loads(local_file.read_text(encoding="utf-8")))
+        except json.JSONDecodeError:
             local = set()
-            if local_file.exists():
-                try:
-                    local = set(json.loads(local_file.read_text(encoding="utf-8")))
-                except json.JSONDecodeError:
-                    local = set()
-            local_file.parent.mkdir(parents=True, exist_ok=True)
-            local_file.write_text(
-                json.dumps(sorted(remote | local), ensure_ascii=False), encoding="utf-8"
-            )
+    local_file.parent.mkdir(parents=True, exist_ok=True)
+    local_file.write_text(json.dumps(sorted(remote | local), ensure_ascii=False), encoding="utf-8")
 
 
 def publish_dist(dist_dir: Path | None = None, message: str = "nouvel épisode") -> None:

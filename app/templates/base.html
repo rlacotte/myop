@@ -12,13 +12,23 @@
     <nav>
       <a href="/" data-nav="/">Réglages</a>
       <a href="/sources" data-nav="/sources">Sources</a>
-      <a href="/episodes" data-nav="/episodes">Épisodes</a>
+      <a href="/episodes" data-nav="/episodes">Épisodes &amp; script</a>
     </nav>
   </header>
+  <div class="showbar">
+    <div class="wrap">
+      <span class="showbar-label">🎙 Émission :</span>
+      <div id="show-tabs" class="show-tabs"></div>
+      <button id="show-add" class="btn small ghost" title="Nouvelle émission">＋ nouvelle</button>
+    </div>
+  </div>
   <main>
     {% block content %}{% endblock %}
   </main>
   <div id="toast" role="status" hidden></div>
+  <script>
+    window.MYOP_SHOW = "{{ show.id }}";
+  </script>
   <script src="/static/app.js"></script>
 </body>
 </html>

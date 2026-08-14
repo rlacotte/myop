@@ -1,4 +1,4 @@
-"""Fixtures partagées : config de test, flux RSS simulés, client httpx mocké."""
+"""Fixtures partagées : show de test, flux RSS simulés, client httpx mocké."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import pytest
 
-from app.config import Config, Source
+from app.config import Config, Show, Source
 
 
 def make_rss(items: list[dict]) -> bytes:
@@ -37,8 +37,10 @@ def now() -> datetime:
 
 
 @pytest.fixture
-def config() -> Config:
-    return Config(
+def show() -> Show:
+    """Émission de test : 2 sources, 5 titres, 2 brèves."""
+    return Show(
+        id="test",
         title="Podcast Test",
         num_headlines=5,
         num_briefs=2,
@@ -47,6 +49,14 @@ def config() -> Config:
             Source(name="Source A", url="https://a.example/rss"),
             Source(name="Source B", url="https://b.example/rss"),
         ],
+    )
+
+
+@pytest.fixture
+def config(show: Show) -> Config:
+    return Config(
+        shows=[show],
+        github={"repo": "me/myop", "pages_base": "https://me.github.io/myop/"},
     )
 
 

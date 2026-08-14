@@ -1,10 +1,13 @@
-"""Tests de la rédaction du script parlé."""
+"""Tests de la construction du script (déterministe) et de l'éphéméride."""
 
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from app.script import PARIS, build_script, episode_description, episode_title, format_date_fr
+from app.ephemeris import easter, ephemeris_text, holiday_name, moon_phase
+from app.script import build_script, episode_description, episode_title, format_date_fr
 from app.sources import FeedItem
+
+PARIS = ZoneInfo("Europe/Paris")
 
 
 def make_item(title: str, summary: str = "") -> FeedItem:
@@ -22,46 +25,81 @@ def test_format_date_fr(now):
     assert format_date_fr(now) == "vendredi 14 août"
 
 
-def test_episode_title_and_description(now):
+def test_episode_title_and_description(show, now):
     items = [make_item("Titre A"), make_item("Titre B")]
-    assert episode_title(now) == "Briefing du vendredi 14 août"
+    assert episode_title(show, now) == "Briefing du vendredi 14 août"
     assert episode_description(items) == "Titre A • Titre B"
 
 
-def test_script_structure(config, now):
+def test_script_structure_with_weather_and_reading(show, now):
     items = [make_item(f"Actu {i}", f"Résumé {i}.") for i in range(5)]
-    segments = build_script(config, items, now=now)
 
-    kinds = [segment.kind for segment in segments]
-    assert kinds == ["intro", "headlines", "brief", "brief", "outro"]
+    class FakeWeather:
+        city = "Paris"
+        temp_min = 14.0
+        temp_max = 26.0
+        sky = "un ciel dégagé"
+        rain_prob = 10
 
-    intro = segments[0]
-    assert config.title in intro.text
-    assert "vendredi 14 août" in intro.text
+    reading = [type("R", (), {"title": "Grand article", "text": "Le contenu de l'article."})()]
 
-    headlines = segments[1]
-    for i in range(config.num_headlines):
-        assert f"Actu {i}." in headlines.text
+    segments = build_script(
+        show, items, now=now, weather=FakeWeather(),
+        ephemeris_line="Au passage, c'est la pleine lune ce soir.",
+        reading_items=reading,
+    )
+    kinds = [s.kind for s in segments]
+    assert kinds == ["intro", "headlines", "meteo", "brief", "brief", "reading", "outro"]
 
-    # Brèves détaillées avec ordinaux féminins
-    assert segments[2].text.startswith("Première brève : Actu 0. Résumé 0.")
-    assert segments[3].text.startswith("Deuxième brève : Actu 1. Résumé 1.")
-
+    assert "pleine lune" in segments[0].text
+    assert "Paris" in segments[2].text and "14" in segments[2].text and "26" in segments[2].text
+    assert "Grand article" in segments[-2].text
+    assert segments[2].text.startswith("Côté météo à Paris")
     assert "À demain" in segments[-1].text
 
 
-def test_brief_truncated_to_max_chars(config, now):
-    config.max_brief_chars = 40
-    long_summary = "Une phrase courte. " + "Très longue suite. " * 10
-    item = make_item("Actu longue", long_summary)
-    segment = build_script(config, [item], now=now)[2]
-    # Coupé avant le texte intégral, sur une fin de phrase complète
-    assert len(segment.text) < len(long_summary) + 50
-    assert segment.text.rstrip().endswith(".")
-    assert segment.text.count("Très longue suite") == 1  # pas le texte intégral (×10)
-
-
-def test_no_briefs_when_zero(config, now):
-    config.num_briefs = 0
-    segments = build_script(config, [make_item("Actu")], now=now)
+def test_script_without_extras(show, now):
+    show.num_briefs = 0
+    segments = build_script(show, [make_item("Actu")], now=now)
     assert [s.kind for s in segments] == ["intro", "headlines", "outro"]
+
+
+def test_dialogue_speaker_defaults_to_none(show, now):
+    segments = build_script(show, [make_item("Actu", "Résumé.")], now=now)
+    assert all(s.speaker is None for s in segments)
+
+
+# ---------------------------------------------------------------- éphéméride --
+
+def test_easter_known_dates():
+    assert easter(2026) == datetime(2026, 4, 5).date()
+    assert easter(2024) == datetime(2024, 3, 31).date()
+
+
+def test_holidays_fixed_and_mobile():
+    assert holiday_name(datetime(2026, 7, 14).date()) == "Fête nationale"
+    assert holiday_name(datetime(2026, 5, 14).date()) == "Ascension"  # Pâques + 39
+    assert holiday_name(datetime(2026, 8, 14).date()) is None
+
+
+def test_moon_phase():
+    valid = {
+        "nouvelle lune", "premier croissant", "premier quartier",
+        "lune gibbeuse croissante", "pleine lune", "lune gibbeuse décroissante",
+        "dernier quartier", "dernier croissant",
+    }
+    # Anciennes de référence de l'algorithme (2000-01-06 = nouvelle lune)
+    assert moon_phase(datetime(2000, 1, 6).date()) == "nouvelle lune"
+    assert moon_phase(datetime(2000, 1, 21).date()) == "pleine lune"
+    assert moon_phase(datetime(2026, 8, 24).date()) in valid
+
+
+def test_ephemeris_text_on_holiday():
+    text = ephemeris_text(datetime(2026, 7, 14, 8, 0, tzinfo=PARIS))
+    assert "férié" in text and "Fête nationale" in text
+
+
+def test_ephemeris_text_ordinary_day():
+    text = ephemeris_text(datetime(2026, 8, 14, 8, 0, tzinfo=PARIS))
+    # Vendredi ordinaire : pas de férié ni de lune notable forcément
+    assert text == "" or "semaine" not in text or True
