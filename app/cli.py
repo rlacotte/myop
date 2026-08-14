@@ -77,10 +77,17 @@ def cmd_setup(args) -> int:
     for warning in result.warnings:
         print(f"  ⚠️  {warning}")
     if not result.ok:
-        print(f"❌ Pas d'épisode : {result.reason}")
-        print("   Vérifie tes sources RSS (myop serve → onglet Sources).")
-        return 1
-    print(f"   ✅ {result.episode_path.name} — {result.duration // 60} min {result.duration % 60:02d}s")
+        # Pas de nouvel article mais un épisode local existe déjà ? On le publie.
+        if any((DIST_DIR / "episodes").glob("*.json")):
+            print("   ℹ️  Pas de nouvel article — publication de l'épisode existant.")
+        else:
+            print(f"❌ Pas d'épisode : {result.reason}")
+            print("   Vérifie tes sources RSS (myop serve → onglet Sources).")
+            return 1
+    else:
+        print(f"   ✅ {result.episode_path.name} — {result.duration // 60} min {result.duration % 60:02d}s")
+        if result.ai_used:
+            print(f"   ✍️  script rédigé par l'IA ({config.ai.model})")
 
     print("📦 Publication sur GitHub Pages…")
     publish.push_config(CONFIG_PATH)
@@ -129,7 +136,7 @@ def cmd_generate(args) -> int:
         now = local.replace(year=day.year, month=day.month, day=day.day)
     if args.publish:
         publish.fetch_existing(DIST_DIR)
-    result = asyncio.run(generate_episode(config, now=now))
+    result = asyncio.run(generate_episode(config, now=now, ignore_seen=args.fresh))
     for warning in result.warnings:
         print(f"⚠️  {warning}")
     if not result.ok:
@@ -189,6 +196,9 @@ def build_parser() -> argparse.ArgumentParser:
     generate = sub.add_parser("generate", help="génère l'épisode du jour")
     generate.add_argument("--publish", action="store_true", help="publie sur gh-pages ensuite")
     generate.add_argument("--date", help="date de l'épisode (AAAA-MM-JJ, pour test)")
+    generate.add_argument(
+        "--fresh", action="store_true", help="ignore l'historique (régénère sans nouvel article)"
+    )
     generate.set_defaults(func=cmd_generate)
 
     publish_cmd = sub.add_parser("publish", help="publie dist/ sur gh-pages")

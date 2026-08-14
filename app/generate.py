@@ -199,14 +199,18 @@ async def generate_episode(
     dist_dir: Path | None = None,
     *,
     now: datetime | None = None,
+    ignore_seen: bool = False,
 ) -> GenerationResult:
-    """Génère l'épisode du jour et reconstruit le flux. Aucun réseau côté publication."""
+    """Génère l'épisode du jour et reconstruit le flux. Aucun réseau côté publication.
+
+    `ignore_seen` : ignorer l'historique (régénérer même sans nouvel article).
+    """
     dist_dir = dist_dir or DIST_DIR
     now = now or datetime.now(tz=PARIS)
     episodes_dir = dist_dir / "episodes"
     episodes_dir.mkdir(parents=True, exist_ok=True)
 
-    seen = load_seen(dist_dir)
+    seen = set() if ignore_seen else load_seen(dist_dir)
     fetched = await fetch_items(config, now=now.astimezone(ZoneInfo("UTC")), seen=seen)
     result = GenerationResult(
         ok=False, warnings=[f"Source inaccessible — {e}" for e in fetched.errors]
