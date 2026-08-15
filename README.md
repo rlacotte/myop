@@ -30,9 +30,13 @@ Toi ◄── Apple Podcasts / Overcast / page web ◄── flux RSS (GitHub Pa
 ### ✍️ Rédaction
 - **Script par IA** (OpenRouter — Gemini par défaut) avec **persona éditable** :
   ton radio, humour, personnage…
+- **Ton par l'exemple** : colle des extraits dont tu aimes le style (une
+  chronique, ton propre texte) — l'IA en imite le rythme et le vocabulaire,
+  jamais le contenu. Bien plus efficace que de décrire un ton
 - **Traduction automatique** : sources en anglais, espagnol… résumées en français
-- **Éditeur de script** : prépare l'épisode, relis et retouche le texte
-  (ou réécris-le) avant la synthèse vocale
+- **Éditeur de script** : prépare l'épisode, retouche le texte, ajoute, supprime
+  ou réordonne les segments, change leur type et leur voix, retitre l'épisode —
+  puis synthétise. Le brouillon est enregistré : tu peux fermer la page
 - **Repli déterministe garanti** : si l'IA est indisponible, l'épisode part quand même
 
 ### 🎧 Audio
@@ -105,9 +109,9 @@ make serve   # → http://localhost:8484
 
 | Onglet | Actions |
 |---|---|
-| **Réglages** | par émission : titre, heure, voix (+ extrait écoutable, 2ᵉ voix, météo, éphéméride, volume de titres) · globaux : persona IA, jingle, chapitrage, rétention des épisodes |
+| **Réglages** | par émission : titre, heure, voix (+ extrait écoutable, 2ᵉ voix, météo, éphéméride, volume de titres) · globaux : persona IA, **exemples de ton**, jingle, chapitrage, rétention des épisodes |
 | **Sources** | bibliothèque 12 catégories (switch par flux, « tout activer » par catégorie, recherche), santé en direct, OPML, flux perso |
-| **Épisodes & script** | générer, **préparer/éditer le script** puis synthétiser, liste de lecture, votes 👍/👎, rattrapage par date, publication GitHub, QR code |
+| **Épisodes & script** | générer, **préparer/éditer le script** (segments réordonnables, brouillon persistant) puis synthétiser, liste de lecture, votes 👍/👎, rattrapage par date, publication GitHub, QR code |
 
 ## 🧰 Commandes
 
@@ -140,9 +144,10 @@ app/
 ├── jingle.py     # jingle + transitions synthétisés (oscillateurs)
 ├── tts.py        # voix Edge / ElevenLabs, assemblage, bornes de chapitres
 ├── chapters.py   # chapitrage ID3 (CHAP/CTOC via mutagen)
+├── transcript.py # transcription : texte lisible + WebVTT calé sur l'audio
 ├── generate.py   # pipeline : collecte → script → audio → flux par émission
 ├── feed.py       # flux RSS iTunes par show + page publique one-tap/lecteur
-├── publish.py    # gh-pages (accumulation), Pages, secrets
+├── publish.py    # gh-pages (rétention), Pages, planification du workflow
 └── dashboard.py  # interface locale complète
 ```
 

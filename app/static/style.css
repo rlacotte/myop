@@ -242,12 +242,15 @@ input[readonly] { opacity: 0.75; }
 #toast.ok { border-color: var(--ok); color: var(--ok); }
 
 /* Éditeur de script */
-.draft-segment { display: block; margin-bottom: 12px; }
+.draft-segment { display: block; margin-bottom: 14px; }
+.draft-segment .seg-head { gap: 6px; align-items: center; margin-bottom: 5px; }
+.draft-segment .seg-head select { width: auto; padding: 3px 10px; font-size: 0.75rem; }
 .draft-segment .kind {
   display: inline-block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
   padding: 3px 10px; border-radius: 999px; margin-bottom: 4px;
   background: rgba(159, 208, 255, 0.15); color: var(--accent);
 }
+.draft-segment .seg-head .btn { padding: 2px 9px; line-height: 1.4; }
 .kind-meteo { background: rgba(124, 232, 176, 0.15); color: var(--ok); }
 .kind-brief { background: rgba(195, 155, 255, 0.15); color: var(--accent2); }
 .kind-reading { background: rgba(255, 216, 131, 0.15); color: #ffd883; }

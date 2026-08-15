@@ -69,6 +69,15 @@ class AIConfig(BaseModel):
     persona: str = "rédacteur en chef d'un flash radio matinal : clair, vif, chaleureux, jamais sensationnaliste"
     # Consigne système entièrement personnalisée (prioritaire sur persona)
     system_prompt: str | None = None
+    # Extraits que le modèle doit imiter : décrire un ton marche moins bien que
+    # le montrer. Le contenu des exemples n'est jamais repris, seule la manière.
+    tone_examples: list[str] = Field(default_factory=list)
+
+    @field_validator("tone_examples")
+    @classmethod
+    def _trim_examples(cls, value: list[str]) -> list[str]:
+        """5 exemples de 1 500 signes max : au-delà, le prompt coûte plus qu'il ne rend."""
+        return [example.strip()[:1500] for example in value if example.strip()][:5]
 
 
 class AudioConfig(BaseModel):

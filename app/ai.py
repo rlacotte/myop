@@ -55,11 +55,33 @@ def load_api_key(config: Config) -> str | None:
     return os.environ.get("OPENROUTER_API_KEY") or None
 
 
+def tone_block(config: Config) -> str:
+    """Exemples de ton, montrés au modèle comme modèles de style.
+
+    Le cadrage est explicite : on imite la manière (rythme, vocabulaire,
+    ponctuation), jamais le contenu — sans quoi le modèle recycle les faits
+    des exemples dans le briefing du jour.
+    """
+    examples = config.ai.tone_examples
+    if not examples:
+        return ""
+    blocks = "\n\n".join(f"Exemple {i} :\n{text}" for i, text in enumerate(examples, start=1))
+    return (
+        "\n\nVoici des extraits qui illustrent le ton attendu. Imite leur rythme, "
+        "leur vocabulaire, leur ponctuation et leur façon d'enchaîner les idées. "
+        "N'en reprends AUCUN fait, AUCUN nom et AUCUNE formule mot pour mot : "
+        "seul le style compte.\n\n" + blocks
+    )
+
+
 def system_prompt(config: Config) -> str:
-    """Consigne système : prompt libre si fourni, sinon base + persona."""
-    if config.ai.system_prompt:
-        return config.ai.system_prompt
-    return BASE_PROMPT.format(persona=config.ai.persona)
+    """Consigne système : prompt libre si fourni, sinon base + persona.
+
+    Les exemples de ton s'ajoutent dans les deux cas : ils décrivent la forme,
+    pas la mission.
+    """
+    base = config.ai.system_prompt or BASE_PROMPT.format(persona=config.ai.persona)
+    return base + tone_block(config)
 
 
 def build_user_prompt(

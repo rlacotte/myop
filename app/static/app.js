@@ -504,6 +504,7 @@ if (document.body.dataset.page === "episodes") {
     try {
       draftData = await api(`/script/draft?${showQuery()}`, { method: "POST" });
       renderDraft();
+      $("#draft-card").scrollIntoView({ behavior: "smooth" });
     } catch (err) {
       toast(err.message, "err");
     } finally {
@@ -511,30 +512,123 @@ if (document.body.dataset.page === "episodes") {
     }
   });
 
-  function renderDraft() {
-    const card = $("#draft-card");
-    card.hidden = false;
-    card.scrollIntoView({ behavior: "smooth" });
-    $("#draft-meta").textContent =
-      `${draftData.title}${draftData.ai_used ? " · ✍️ IA" : " · déterministe"}`;
-    const box = $("#draft-segments");
-    box.innerHTML = "";
-    draftData.segments.forEach((segment, i) => {
-      const field = document.createElement("label");
-      field.className = "draft-segment";
-      field.innerHTML = `
-        <span class="kind kind-${segment.kind}">${segment.kind}${segment.speaker ? " · " + segment.speaker : ""}</span>
-        <textarea rows="${Math.max(2, Math.ceil(segment.text.length / 90))}" data-seg="${i}">${segment.text}</textarea>`;
-      box.append(field);
-    });
-  }
+  const SEGMENT_KINDS = ["intro", "headlines", "meteo", "brief", "reading", "outro"];
 
-  $("#btn-render")?.addEventListener("click", async () => {
+  // Récupère les saisies en cours avant tout redessin ou envoi
+  function collectDraft() {
     if (!draftData) return;
     draftData.segments = draftData.segments.map((segment, i) => ({
       ...segment,
       text: document.querySelector(`[data-seg="${i}"]`)?.value ?? segment.text,
     }));
+    draftData.title = $("#draft-title")?.value ?? draftData.title;
+  }
+
+  function renderDraft() {
+    const card = $("#draft-card");
+    card.hidden = false;
+    $("#draft-meta").textContent =
+      `${draftData.segments.length} segments${draftData.ai_used ? " · ✍️ IA" : " · déterministe"}`;
+    $("#draft-title").value = draftData.title || "";
+    const box = $("#draft-segments");
+    box.innerHTML = "";
+    draftData.segments.forEach((segment, i) => {
+      const field = document.createElement("div");
+      field.className = "draft-segment";
+      const kinds = SEGMENT_KINDS.map(
+        (kind) => `<option value="${kind}"${kind === segment.kind ? " selected" : ""}>${kind}</option>`
+      ).join("");
+      field.innerHTML = `
+        <div class="row wrap seg-head">
+          <select data-kind="${i}" class="kind kind-${segment.kind}">${kinds}</select>
+          <select data-speaker="${i}">
+            <option value=""${!segment.speaker ? " selected" : ""}>voix principale</option>
+            <option value="host"${segment.speaker === "host" ? " selected" : ""}>voix 1</option>
+            <option value="co"${segment.speaker === "co" ? " selected" : ""}>voix 2</option>
+          </select>
+          <span class="grow"></span>
+          <button class="btn small ghost" data-move="${i}" data-dir="-1" ${i === 0 ? "disabled" : ""}>↑</button>
+          <button class="btn small ghost" data-move="${i}" data-dir="1" ${i === draftData.segments.length - 1 ? "disabled" : ""}>↓</button>
+          <button class="btn small ghost" data-remove="${i}">✕</button>
+        </div>
+        <textarea rows="${Math.max(2, Math.ceil(segment.text.length / 90))}" data-seg="${i}"></textarea>`;
+      // .value plutôt que le HTML : un script contenant « </textarea> » casserait le champ
+      field.querySelector("textarea").value = segment.text;
+      box.append(field);
+    });
+  }
+
+  async function saveDraft(quiet) {
+    collectDraft();
+    if (!draftData) return;
+    try {
+      await api("/script/draft", {
+        method: "PUT",
+        body: JSON.stringify({
+          show_id: SHOW,
+          segments: draftData.segments,
+          title: draftData.title,
+        }),
+      });
+      if (!quiet) toast("Brouillon enregistré ✓");
+    } catch (err) {
+      if (!quiet) toast(err.message, "err");
+    }
+  }
+
+  $("#draft-segments")?.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-move], button[data-remove]");
+    if (!button) return;
+    event.preventDefault();
+    collectDraft();
+    if (button.dataset.remove !== undefined) {
+      if (draftData.segments.length <= 1) return toast("Il faut au moins un segment", "err");
+      draftData.segments.splice(Number(button.dataset.remove), 1);
+    } else {
+      const from = Number(button.dataset.move);
+      const to = from + Number(button.dataset.dir);
+      if (to < 0 || to >= draftData.segments.length) return;
+      const [moved] = draftData.segments.splice(from, 1);
+      draftData.segments.splice(to, 0, moved);
+    }
+    renderDraft();
+    saveDraft(true);
+  });
+
+  $("#draft-segments")?.addEventListener("change", (event) => {
+    const select = event.target.closest("select[data-kind], select[data-speaker]");
+    if (!select) return;
+    collectDraft();
+    const index = Number(select.dataset.kind ?? select.dataset.speaker);
+    if (select.dataset.kind !== undefined) draftData.segments[index].kind = select.value;
+    else draftData.segments[index].speaker = select.value || null;
+    renderDraft();
+    saveDraft(true);
+  });
+
+  $("#btn-seg-add")?.addEventListener("click", () => {
+    collectDraft();
+    draftData.segments.push({ kind: "brief", text: "", rate: null, speaker: null });
+    renderDraft();
+    $("#draft-segments").lastElementChild.querySelector("textarea").focus();
+  });
+
+  $("#btn-draft-save")?.addEventListener("click", () => saveDraft(false));
+
+  $("#btn-draft-discard")?.addEventListener("click", async () => {
+    if (!confirm("Abandonner ce brouillon ?")) return;
+    await api(`/script/draft?${showQuery()}`, { method: "DELETE" }).catch(() => {});
+    draftData = null;
+    $("#draft-card").hidden = true;
+    toast("Brouillon abandonné");
+  });
+
+  $("#btn-render")?.addEventListener("click", async () => {
+    if (!draftData) return;
+    collectDraft();
+    if (!draftData.segments.some((segment) => segment.text.trim())) {
+      return toast("Le script est vide", "err");
+    }
     try {
       await api("/script/render", {
         method: "POST",
@@ -543,9 +637,10 @@ if (document.body.dataset.page === "episodes") {
           segments: draftData.segments,
           items_keys: draftData.items_keys || [],
           titles: draftData.titles || [],
+          title: draftData.title || "",
           description: draftData.description || "",
           ai_used: draftData.ai_used || false,
-          reading_items: [],
+          reading_items: draftData.reading_items || [],
         }),
       });
       $("#draft-card").hidden = true;
@@ -556,7 +651,20 @@ if (document.body.dataset.page === "episodes") {
     }
   });
 
-  $("#btn-draft-close")?.addEventListener("click", () => ($("#draft-card").hidden = true));
+  $("#btn-draft-close")?.addEventListener("click", () => {
+    saveDraft(true);
+    $("#draft-card").hidden = true;
+  });
+
+  // Brouillon laissé en plan lors d'une visite précédente
+  api(`/script/draft?${showQuery()}`)
+    .then((data) => {
+      if (!data.draft) return;
+      draftData = data.draft;
+      renderDraft();
+      toast("Brouillon de script repris");
+    })
+    .catch(() => {});
 
   // Liste de lecture
   async function loadReading() {

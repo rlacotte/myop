@@ -42,11 +42,20 @@
 
 <section class="card" id="draft-card" hidden>
   <h2>📝 Script de l'épisode <span class="hint" id="draft-meta"></span></h2>
-  <p class="hint">Relis et retouche le script avant la synthèse vocale, puis « Synthétiser ».</p>
+  <p class="hint">Retouche le texte, réordonne, ajoute ou supprime des segments,
+    puis « Synthétiser ». Le brouillon est enregistré : tu peux fermer la page.</p>
+  <label>Titre de l'épisode
+    <input id="draft-title" maxlength="140">
+  </label>
   <div id="draft-segments"></div>
+  <div class="row wrap">
+    <button id="btn-seg-add" class="btn small">＋ Ajouter un segment</button>
+    <button id="btn-draft-save" class="btn small ghost">💾 Enregistrer le brouillon</button>
+  </div>
   <div class="row wrap">
     <button id="btn-render" class="btn primary">🎧 Synthétiser cet épisode</button>
     <button id="btn-draft-close" class="btn ghost">Fermer</button>
+    <button id="btn-draft-discard" class="btn ghost">🗑 Abandonner le brouillon</button>
   </div>
 </section>
 

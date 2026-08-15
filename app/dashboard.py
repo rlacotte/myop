@@ -170,6 +170,7 @@ class SettingsUpdate(BaseModel):
     ai_model: str | None = None
     ai_persona: str | None = None
     ai_system_prompt: str | None = None
+    ai_tone_examples: str | None = None  # extraits séparés par une ligne « --- »
     jingle: bool | None = None
     chapters: bool | None = None
 
@@ -189,7 +190,8 @@ def put_settings(update: SettingsUpdate):
     }
     global_fields = {
         "author", "email", "category", "skip_if_empty", "keep_episodes", "ai_enabled",
-        "ai_model", "ai_persona", "ai_system_prompt", "jingle", "chapters",
+        "ai_model", "ai_persona", "ai_system_prompt", "ai_tone_examples", "jingle",
+        "chapters",
     }
     changes = update.model_dump(exclude={"show_id"}, exclude_none=True)
 
@@ -213,6 +215,9 @@ def put_settings(update: SettingsUpdate):
                 config.ai.persona = value
             elif key == "ai_system_prompt":
                 config.ai.system_prompt = value or None
+            elif key == "ai_tone_examples":
+                # Un bloc de texte, exemples séparés par une ligne « --- »
+                config.ai.tone_examples = re.split(r"\n\s*-{3,}\s*\n", value)
             elif key == "ai_enabled":
                 config.ai.enabled = value
             elif key == "ai_model":
@@ -704,9 +709,36 @@ class RenderRequest(BaseModel):
     segments: list[dict]  # [{kind, text, speaker?}]
     items_keys: list[str] = []
     titles: list[str] = []
+    title: str | None = None  # titre retouché (défaut : celui de l'émission)
     description: str = ""
     ai_used: bool = False
     reading_items: list[dict] = []
+
+
+def _draft_path(show: Show) -> Path:
+    return DIST_DIR / f"draft-{show.id}.json"
+
+
+def _draft_payload(draft: Draft) -> dict:
+    return {
+        "show_id": draft.show_id,
+        "episode_id": draft.episode_id,
+        "title": draft.title,
+        "description": draft.description,
+        "segments": [segment.__dict__ for segment in draft.segments],
+        "titles": draft.titles,
+        "ai_used": draft.ai_used,
+        "warnings": draft.warnings,
+        "items_keys": draft.items_keys,
+        # Sans eux, les articles lus ne quittaient pas la file d'attente
+        "reading_items": [item.__dict__ for item in draft.reading_items],
+    }
+
+
+def _save_draft(show: Show, payload: dict) -> None:
+    path = _draft_path(show)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 @app.post("/api/script/draft")
@@ -722,18 +754,55 @@ async def script_draft(show_id: ShowParam = None):
         draft = await build_draft(config, show)
     except Exception as exc:
         raise HTTPException(502, f"{exc.__class__.__name__} : {exc}") from exc
-    _jobs["draft"] = {"segments": [s.__dict__ for s in draft.segments]}
-    return {
-        "show_id": draft.show_id,
-        "episode_id": draft.episode_id,
-        "title": draft.title,
-        "description": draft.description,
-        "segments": [s.__dict__ for s in draft.segments],
-        "titles": draft.titles,
-        "ai_used": draft.ai_used,
-        "warnings": draft.warnings,
-        "items_keys": draft.items_keys,
-    }
+    payload = _draft_payload(draft)
+    _save_draft(show, payload)  # rechargeable après un aller-retour dans le navigateur
+    return payload
+
+
+@app.get("/api/script/draft")
+def get_script_draft(show_id: ShowParam = None):
+    """Brouillon en cours, pour reprendre l'édition après un rechargement."""
+    show = _show_or_404(show_id)
+    path = _draft_path(show)
+    if not path.exists():
+        return {"draft": None}
+    try:
+        return {"draft": json.loads(path.read_text(encoding="utf-8"))}
+    except (json.JSONDecodeError, OSError):
+        return {"draft": None}
+
+
+class DraftSave(BaseModel):
+    show_id: str | None = None
+    segments: list[dict]
+    title: str | None = None
+    description: str | None = None
+
+
+@app.put("/api/script/draft")
+def save_script_draft(payload: DraftSave):
+    """Enregistre les retouches en cours (le travail survit à un rechargement)."""
+    show = _show_or_404(payload.show_id)
+    path = _draft_path(show)
+    stored = {}
+    if path.exists():
+        try:
+            stored = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            stored = {}
+    stored["segments"] = payload.segments
+    if payload.title is not None:
+        stored["title"] = payload.title
+    if payload.description is not None:
+        stored["description"] = payload.description
+    _save_draft(show, stored)
+    return {"ok": True, "segments": len(payload.segments)}
+
+
+@app.delete("/api/script/draft")
+def delete_script_draft(show_id: ShowParam = None):
+    _draft_path(_show_or_404(show_id)).unlink(missing_ok=True)
+    return {"ok": True}
 
 
 @app.post("/api/script/render")
@@ -769,7 +838,7 @@ async def script_render(payload: RenderRequest):
         show_id=show.id,
         episode_id=now.date().isoformat(),
         # Le titre suit l'émission choisie (pas un « Briefing » en dur)
-        title=episode_title(show, now),
+        title=(payload.title or "").strip() or episode_title(show, now),
         description=payload.description or " • ".join(payload.titles[:5]),
         segments=segments,
         titles=payload.titles,
@@ -794,6 +863,8 @@ async def script_render(payload: RenderRequest):
                 "ai_used": result.ai_used, "chapters": result.chapter_titles,
                 "reading_count": result.reading_count,
             }
+            if result.ok:  # brouillon consommé — conservé en cas d'échec
+                _draft_path(show).unlink(missing_ok=True)
             job["log"].append("Terminé ✅")
         except Exception as exc:
             job["result"] = {"ok": False, "reason": f"{exc.__class__.__name__} : {exc}"}

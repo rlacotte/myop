@@ -87,6 +87,12 @@
   <label>Persona / ton de l'émission
     <textarea name="ai_persona" rows="2" maxlength="400">{{ config.ai.persona }}</textarea>
   </label>
+  <label>Exemples de ton
+    <textarea name="ai_tone_examples" rows="6" placeholder="Colle un ou plusieurs extraits dont tu aimes le style — une chronique, un billet, ta propre écriture.
+Sépare les exemples par une ligne contenant ---">{{ config.ai.tone_examples | join('\n---\n') }}</textarea>
+    <small>Montrer un ton marche mieux que le décrire. Le style est imité,
+      jamais le contenu. 5 exemples max, 1 500 signes chacun.</small>
+  </label>
   <label>Consigne système libre (avancé — vide = persona)
     <textarea name="ai_system_prompt" rows="2" maxlength="1000">{{ config.ai.system_prompt or '' }}</textarea>
   </label>

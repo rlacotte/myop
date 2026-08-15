@@ -114,6 +114,35 @@ def test_system_prompt_uses_persona_then_custom_override():
     assert system_prompt(config) == "Consigne maison."
 
 
+def test_tone_examples_are_shown_to_the_model():
+    """Montrer le ton plutôt que le décrire — mais sans en recycler le contenu."""
+    config = Config(ai={"tone_examples": ["Il est sept heures. Dehors, il pleut.", "Deuxième extrait."]})
+    prompt = system_prompt(config)
+
+    assert "Exemple 1 :\nIl est sept heures. Dehors, il pleut." in prompt
+    assert "Exemple 2 :\nDeuxième extrait." in prompt
+    assert "AUCUN fait" in prompt  # garde-fou explicite contre la reprise du contenu
+
+
+def test_tone_examples_complete_a_custom_system_prompt():
+    config = Config(ai={"system_prompt": "Consigne maison.", "tone_examples": ["Un extrait."]})
+    prompt = system_prompt(config)
+    assert prompt.startswith("Consigne maison.") and "Un extrait." in prompt
+
+
+def test_no_tone_block_without_examples():
+    assert "Exemple 1" not in system_prompt(Config())
+
+
+def test_tone_examples_are_capped_and_cleaned():
+    config = Config(ai={"tone_examples": ["  court  ", "", "   ", "x" * 3000] + ["a"] * 10})
+    examples = config.ai.tone_examples
+
+    assert examples[0] == "court"  # espaces retirés
+    assert "" not in examples  # entrées vides ignorées
+    assert len(examples) == 5 and max(len(e) for e in examples) == 1500
+
+
 async def test_ai_script_calls_openrouter(show, ai_config, now, monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     captured = {}

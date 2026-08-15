@@ -130,6 +130,97 @@ def test_retention_setting_is_saved_globally(client, two_shows):
     assert client.put("/api/settings", json={"keep_episodes": -1}).status_code == 422
 
 
+def test_tone_examples_round_trip_through_the_form(client, two_shows):
+    """Le formulaire envoie un bloc de texte ; la config stocke une liste."""
+    from app.config import load_config
+
+    blob = "Premier extrait, celui du matin.\n---\nDeuxième extrait, plus sec."
+    assert client.put("/api/settings", json={"ai_tone_examples": blob}).status_code == 200
+    assert load_config(two_shows).ai.tone_examples == [
+        "Premier extrait, celui du matin.",
+        "Deuxième extrait, plus sec.",
+    ]
+
+    # Vider le champ efface les exemples
+    assert client.put("/api/settings", json={"ai_tone_examples": ""}).status_code == 200
+    assert load_config(two_shows).ai.tone_examples == []
+
+
+def test_settings_page_renders_current_tone_examples(client, two_shows):
+    client.put("/api/settings", json={"ai_tone_examples": "Un extrait\n---\nDeux"})
+    page = client.get("/").text
+    assert "Un extrait\n---\nDeux" in page
+
+
+def test_draft_survives_a_reload_and_is_per_show(client, tmp_path):
+    """Le brouillon est stocké côté serveur : fermer l'onglet ne perd rien."""
+    assert client.get("/api/script/draft?show=soir").json()["draft"] is None
+
+    saved = client.put(
+        "/api/script/draft",
+        json={"show_id": "soir", "title": "Édition du soir",
+              "segments": [{"kind": "intro", "text": "Bonsoir."},
+                           {"kind": "brief", "text": "Une brève."}]},
+    )
+    assert saved.json() == {"ok": True, "segments": 2}
+
+    draft = client.get("/api/script/draft?show=soir").json()["draft"]
+    assert draft["title"] == "Édition du soir"
+    assert [s["text"] for s in draft["segments"]] == ["Bonsoir.", "Une brève."]
+    # Chaque émission a le sien
+    assert client.get("/api/script/draft?show=matin").json()["draft"] is None
+
+    assert client.delete("/api/script/draft?show=soir").status_code == 200
+    assert client.get("/api/script/draft?show=soir").json()["draft"] is None
+
+
+def test_draft_save_keeps_the_collection_context(client):
+    """Réordonner des segments ne doit pas perdre l'historisation ni la file de lecture."""
+    import app.dashboard as dashboard
+
+    dashboard._save_draft(
+        dashboard.load_config().show("soir"),
+        {"segments": [{"kind": "intro", "text": "Bonsoir."}], "items_keys": ["https://ex/1"],
+         "reading_items": [{"url": "https://ex/a", "title": "A", "text": "…"}], "titles": ["T"]},
+    )
+    client.put("/api/script/draft",
+               json={"show_id": "soir", "segments": [{"kind": "outro", "text": "À demain."}]})
+
+    draft = client.get("/api/script/draft?show=soir").json()["draft"]
+    assert draft["items_keys"] == ["https://ex/1"]
+    assert draft["reading_items"][0]["url"] == "https://ex/a"
+    assert draft["segments"][0]["kind"] == "outro"
+
+
+def test_render_honours_an_edited_title_and_empties_the_reading_queue(client, monkeypatch):
+    import app.dashboard as dashboard
+
+    captured = {}
+
+    async def _fake_generate(config, show, dist_dir=None, *, now=None, ignore_seen=False, draft=None):
+        from app.generate import GenerationResult
+
+        captured["title"] = draft.title
+        captured["reading"] = draft.reading_items
+        return GenerationResult(ok=True, show_id=show.id, episode_id="2026-08-15")
+
+    monkeypatch.setattr(dashboard, "generate_episode", _fake_generate)
+    dashboard._jobs.clear()
+
+    client.post(
+        "/api/script/render",
+        json={"show_id": "soir", "title": "Spéciale élections",
+              "segments": [{"kind": "intro", "text": "Bonsoir."}],
+              "reading_items": [{"url": "https://ex/a", "title": "A", "text": "Contenu"}]},
+    )
+    client.get("/api/generate/status?show=soir")  # laisse tourner la tâche de fond
+
+    assert captured["title"] == "Spéciale élections"
+    # Sans cela, les articles lus restaient en file et repassaient le lendemain
+    assert [item.url for item in captured["reading"]] == ["https://ex/a"]
+    dashboard._jobs.clear()
+
+
 def test_script_render_refuses_empty_script(client):
     response = client.post("/api/script/render", json={"show_id": "soir", "segments": []})
     assert response.status_code == 400
