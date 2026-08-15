@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -20,12 +20,17 @@ from .config import Config, Show
 from .ephemeris import ephemeris_text
 from .feed import feed_filename, write_feed, write_index
 from .script import PARIS, Segment, build_script, episode_description, episode_title
-from .sources import fetch_items
+from .sources import fetch_items, title_tokens
+from .transcript import write_transcript
 from .tts import synthesize
 from .weather import fetch_weather, weather_text
 
 DIST_DIR = Path(__file__).resolve().parent.parent / "dist"
 SEEN_LIMIT = 3000  # taille max de l'historique de dédoublonnage
+# Un sujet déjà traité ne revient pas avant quelques jours, même repris par un
+# autre média sous un autre titre (l'historique par URL ne le voit pas passer).
+TOPIC_MEMORY_DAYS = 3
+TOPIC_LIMIT = 600
 
 
 @dataclass
@@ -88,6 +93,54 @@ def save_seen(dist_dir: Path, show: Show, seen: set[str]) -> None:
     seen_file = _seen_path(dist_dir, show)
     seen_file.parent.mkdir(parents=True, exist_ok=True)
     seen_file.write_text(json.dumps(kept, ensure_ascii=False), encoding="utf-8")
+
+
+# ------------------------------------------------------- mémoire des sujets --
+
+def _topics_path(dist_dir: Path, show: Show) -> Path:
+    return dist_dir / f"topics-{show.id}.json"
+
+
+def _read_topics(dist_dir: Path, show: Show) -> list[str]:
+    """Entrées « <date ISO> <mots du titre> », triées donc chronologiques."""
+    path = _topics_path(dist_dir, show)
+    if not path.exists():
+        return []
+    try:
+        return [entry for entry in json.loads(path.read_text(encoding="utf-8")) if entry]
+    except (json.JSONDecodeError, OSError, TypeError):
+        return []
+
+
+def load_topics(dist_dir: Path, show: Show, now: datetime) -> list[set[str]]:
+    """Sujets diffusés ces derniers jours, en jeux de mots significatifs."""
+    floor = (now.date() - timedelta(days=TOPIC_MEMORY_DAYS)).isoformat()
+    topics = []
+    for entry in _read_topics(dist_dir, show):
+        date, _, words = entry.partition(" ")
+        if date >= floor and words:
+            topics.append(set(words.split()))
+    return topics
+
+
+def save_topics(dist_dir: Path, show: Show, titles: list[str], now: datetime) -> None:
+    """Mémorise les sujets de l'épisode, en purgeant les plus anciens.
+
+    Le format (date en préfixe, une chaîne par sujet) se fusionne avec
+    l'historique publié par la même union triée que `seen-<show>.json`.
+    """
+    day = now.date().isoformat()
+    floor = (now.date() - timedelta(days=TOPIC_MEMORY_DAYS)).isoformat()
+    entries = {entry for entry in _read_topics(dist_dir, show) if entry[: len(floor)] >= floor}
+    for title in titles:
+        tokens = title_tokens(title)
+        if tokens:
+            entries.add(f"{day} {' '.join(sorted(tokens))}")
+    path = _topics_path(dist_dir, show)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(sorted(entries)[-TOPIC_LIMIT:], ensure_ascii=False), encoding="utf-8"
+    )
 
 
 def _load_font(size: int):
@@ -165,7 +218,14 @@ async def _collect_day(
     ) else None
 
     seen = set() if ignore_seen else load_seen(dist_dir, show)
-    fetched = await fetch_items(show, now=now.astimezone(ZoneInfo("UTC")), seen=seen, ranker=ranker)
+    recent_topics = [] if ignore_seen else load_topics(dist_dir, show, now)
+    fetched = await fetch_items(
+        show,
+        now=now.astimezone(ZoneInfo("UTC")),
+        seen=seen,
+        ranker=ranker,
+        recent_topics=recent_topics,
+    )
 
     weather = await fetch_weather(show.weather_city) if show.weather_city else None
     weather_line = weather_text(weather) if weather else ""
@@ -281,7 +341,7 @@ def prune_episodes(dist_dir: Path, show_id: str, keep: int) -> list[str]:
     ids = sorted(path.stem for path in episodes_dir.glob("*.json"))
     dropped = ids[:-keep] if len(ids) > keep else []
     for episode_id in dropped:
-        for suffix in (".json", ".mp3"):
+        for suffix in (".json", ".mp3", ".vtt", ".txt"):
             (episodes_dir / f"{episode_id}{suffix}").unlink(missing_ok=True)
     return dropped
 
@@ -360,6 +420,8 @@ async def generate_episode(
     if config.audio.chapters:
         write_chapters(mp3_path, synth.chapters)
 
+    has_transcript = write_transcript(title, segments, synth.chapters, mp3_path)
+
     meta = {
         "id": episode_id,
         "title": title,
@@ -367,6 +429,8 @@ async def generate_episode(
         "pubDate": now.astimezone(PARIS).isoformat(),
         "duration": synth.duration_seconds,
         "size": mp3_path.stat().st_size,
+        # Porté par la fiche : le flux se reconstruit sans relire le disque
+        "transcript": has_transcript,
     }
     (episodes_dir / f"{episode_id}.json").write_text(
         json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -374,6 +438,8 @@ async def generate_episode(
 
     # Historisation : tout ce qui a été vu aujourd'hui ne reviendra pas demain
     save_seen(dist_dir, show, load_seen(dist_dir, show) | set(all_keys))
+    # Les sujets traités aujourd'hui ne reviendront pas sous un autre titre
+    save_topics(dist_dir, show, titles, now)
     # Les articles lus dans cet épisode quittent la file d'attente
     if reading_items:
         reading_mod.remove_urls(

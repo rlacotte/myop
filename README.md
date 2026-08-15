@@ -39,6 +39,8 @@ Toi ◄── Apple Podcasts / Overcast / page web ◄── flux RSS (GitHub Pa
 - **Voix Edge TTS** (gratuit, ~8 voix françaises) ou **ElevenLabs** (premium)
 - **Jingle d'intro/outro et transitions** — 100 % synthétisés, aucun fichier à fournir
 - **Chapitrage ID3** : Intro · Titres · Météo · Brève 1… navigables dans le lecteur
+- **Transcription** : texte lisible depuis la page publique et WebVTT calé sur
+  l'audio, annoncé aux lecteurs qui gèrent `<podcast:transcript>`
 
 ### 📡 Sources
 - **Bibliothèque intégrée** : 44 flux vérifiés en 12 catégories (généralistes,
@@ -47,8 +49,11 @@ Toi ◄── Apple Podcasts / Overcast / page web ◄── flux RSS (GitHub Pa
 - **Activation par flux ou par catégorie** en un clic, recherche, test en direct
 - **Santé des sources** : diagnostic en parallèle (items, fraîcheur, latence)
 - **Import/export OPML** depuis tes lecteurs RSS existants
-- **Sélection intelligente** : fraîcheur, diversité par source, dédoublonnage
-  par URL **et par similarité de titres** (même info ≠ sources multiples)
+- **Sélection intelligente** : fraîcheur d'abord, puis goût (👍/👎) et présence
+  d'un vrai résumé — chacun pesant quelques heures de fraîcheur, jamais plus
+- **Dédoublonnage** par URL, par similarité de titres entre sources, **et sur
+  les jours précédents** : un sujet déjà diffusé ne revient pas de 3 jours,
+  même repris ailleurs sous un autre titre
 
 ### 🌍 Diffusion
 - **Page publique** : abonnement **one-tap** (Apple Podcasts, Overcast, Pocket
@@ -150,14 +155,17 @@ centimes par épisode (Gemini Flash) ; ElevenLabs en option est payant.
 **Pourquoi l'IA dans le cloud alors que la clé est locale ?** Ajoute le secret
 `OPENROUTER_API_KEY` au repo GitHub — le workflow l'exporte déjà.
 
-**Il n'y a pas eu d'épisode ce matin.** `gh run list --workflow daily.yml` puis
-`gh run watch`. Vérifie aussi la santé des sources (`myop doctor` ou dashboard).
+**Il n'y a pas eu d'épisode ce matin.** Une issue GitHub étiquetée `myop-panne`
+a dû s'ouvrir avec le lien du journal. Sinon `gh run list --workflow daily.yml`
+puis `gh run watch`, et la santé des sources (`myop doctor` ou dashboard).
 
-**Même info répétée ?** Le dédoublonnage par similarité de titres s'en charge ;
-les vrais doublons restent les articles proches publiés à quelques minutes d'écart.
+**Même info répétée ?** Le dédoublonnage joue entre sources et sur les 3 jours
+précédents. Il reste volontairement prudent (mêmes mots significatifs exigés) :
+un rebondissement réel sur un sujet en cours repasse, ce qui est voulu.
 
 **Changer l'heure de livraison ?** Dashboard (Réglages) ou `delivery_hour` dans
-`config.yaml` — le workflow horaire s'en charge automatiquement à la prochaine heure.
+`config.yaml`, puis « Publier la config » : la planification du workflow est
+régénérée à partir de tes heures (été et hiver).
 
 **Réinitialiser la mémoire des articles déjà diffusés ?** Supprime `seen-<show>.json`
 de la branche gh-pages, ou régénère avec `--fresh`.

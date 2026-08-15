@@ -138,18 +138,51 @@ async def test_near_duplicate_titles_deduped(now):
     assert "Le prix du tabac augmente de 5 % au 1er janvier" in titles
 
 
+async def test_recent_topics_drop_yesterdays_subject(now):
+    """Le même sujet repris le lendemain sous un autre titre est écarté.
+
+    L'historique par URL ne peut rien voir : c'est un autre média, donc une
+    autre URL et un autre guid.
+    """
+    body = make_rss(
+        [
+            {"title": "Grève des trains en France ce lundi",
+             "link": "https://autre.example/greve", "date": now - timedelta(hours=1),
+             "summary": "Le trafic est perturbé."},
+            {"title": "Le prix du pain augmente à Paris",
+             "link": "https://autre.example/pain", "date": now - timedelta(hours=2),
+             "summary": "La baguette dépasse un euro."},
+        ]
+    )
+    show = Show(id="t", sources=[Source(name="Autre média", url="https://autre.example/rss")])
+    veille = [title_tokens("Grève des trains : la France à l'arrêt")]
+
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, content=body))
+    async with httpx.AsyncClient(transport=transport) as client:
+        baseline = await fetch_items(show, now=now, client=client)
+        filtered = await fetch_items(show, now=now, client=client, recent_topics=veille)
+
+    assert len(baseline.selected) == 2  # sans mémoire, les deux passent
+    titles = [item.title for item in filtered.selected]
+    assert titles == ["Le prix du pain augmente à Paris"]
+
+
+async def test_recent_topics_keep_unrelated_subjects(show, mock_client, now):
+    topics = [title_tokens("Résultats sportifs du championnat régional de rugby")]
+    async with mock_client as client:
+        result = await fetch_items(show, now=now, client=client, recent_topics=topics)
+
+    assert "Grosse actu A1" in [item.title for item in result.selected]
+
+
 async def test_ranker_reorders_selection(show, mock_client, now):
     """La boucle de goût peut faire remonter une source appréciée."""
     from app.feedback import Feedback
 
+    from app.feedback import apply_feedback
+
     def ranker(items):
-        feedback = Feedback(source_scores={"Source B": 5})
-        # reproduit le tri pondéré de app.feedback.apply_feedback
-        def rank(item):
-            freshness = item.published.timestamp() if item.published else 0
-            score = feedback.source_scores.get(item.source_name, 0)
-            return freshness * (1 + 0.15 * max(min(score, 5), -5))
-        return sorted(items, key=rank, reverse=True)
+        return apply_feedback(items, Feedback(source_scores={"Source B": 5}))
 
     async with mock_client as client:
         result = await fetch_items(show, now=now, client=client, ranker=ranker)

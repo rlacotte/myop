@@ -157,7 +157,7 @@ async def test_generate_falls_back_when_ai_fails(tmp_path, show, monkeypatch):
     from app.sources import FetchResult
     from tests.test_generate import _fake_synthesize
 
-    async def _fake_fetch(show, *, now=None, seen=None, client=None, ranker=None):
+    async def _fake_fetch(show, *, now=None, seen=None, client=None, ranker=None, recent_topics=None):
         return FetchResult(selected=[make_item("Actu IA", "Résumé.")], all_keys=["k"])
 
     async def _failing_ai(*args, **kwargs):

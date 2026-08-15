@@ -10,10 +10,17 @@ from __future__ import annotations
 
 import html
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
 from feedgen.feed import FeedGenerator
+
+# Espace de noms Podcasting 2.0 : feedgen ne le connaît pas, on l'ajoute après
+# coup plutôt que d'écrire le flux à la main.
+PODCAST_NS = "https://podcastindex.org/namespace/1.0"
+_ITEM = re.compile(r"<item>.*?</item>", re.DOTALL)
+_ENCLOSURE_ID = re.compile(r'<enclosure url="[^"]*/episodes/[^/]+/([^"/]+)\.mp3"')
 
 
 def load_episode_metas(dist_dir: Path, show_id: str) -> list[dict]:
@@ -92,7 +99,27 @@ def build_feed(config, show, episodes: list[dict], base_url: str) -> str:
             latest = pub
 
     fg.updated(latest)
-    return fg.rss_str(pretty=True).decode("utf-8")
+    xml = fg.rss_str(pretty=True).decode("utf-8")
+    return add_transcripts(xml, base, show.id, episodes)
+
+
+def add_transcripts(xml: str, base: str, show_id: str, episodes: list[dict]) -> str:
+    """Ajoute <podcast:transcript> aux épisodes qui en ont une."""
+    with_transcript = {meta["id"] for meta in episodes if meta.get("transcript")}
+    if not with_transcript:
+        return xml
+
+    def one(match: re.Match) -> str:
+        block = match.group(0)
+        found = _ENCLOSURE_ID.search(block)
+        if not found or found.group(1) not in with_transcript:
+            return block
+        url = f"{base}episodes/{show_id}/{found.group(1)}.vtt"
+        tag = f'    <podcast:transcript url="{url}" type="text/vtt" language="fr"/>\n'
+        return block.replace("</item>", f"{tag}  </item>")
+
+    xml = xml.replace("<rss ", f'<rss xmlns:podcast="{PODCAST_NS}" ', 1)
+    return _ITEM.sub(one, xml)
 
 
 def write_feed(config, show, dist_dir: Path) -> Path:
@@ -233,11 +260,15 @@ async function loadShow(show) {{
     for (const item of items) {{
       const enclosure = item.querySelector('enclosure');
       const date = new Date(item.querySelector('pubDate').textContent);
+      // Transcription : on sert la version lisible, pas le fichier de sous-titres
+      const vtt = item.getElementsByTagName('podcast:transcript')[0];
+      const text = vtt ? vtt.getAttribute('url').replace(/\\.vtt$/, '.txt') : null;
       const row = document.createElement('div'); row.className = 'ep';
       row.innerHTML = `
         <div class="meta">
           <strong>${{esc(item.querySelector('title').textContent)}}</strong>
           <div class="desc">${{esc(item.querySelector('description').textContent)}}</div>
+          ${{text ? `<a class="badge" href="${{text}}">📄 lire la transcription</a>` : ''}}
         </div>
         <span class="badge">${{date.toLocaleDateString('fr-FR')}}</span>
         ${{enclosure ? `<audio controls preload="none" src="${{enclosure.getAttribute('url')}}"></audio>` : ''}}`;

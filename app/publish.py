@@ -102,7 +102,7 @@ def fetch_existing(dist_dir: Path) -> None:
         elif blob == "seen.json":
             # Ancien format mono-émission → show « matin »
             _merge_key_set(dist_dir / "seen-matin.json", sh(["git", "show", "FETCH_HEAD:seen.json"]))
-        elif blob.startswith("seen-") and blob.endswith(".json"):
+        elif blob.startswith(("seen-", "topics-")) and blob.endswith(".json"):
             _merge_key_set(dist_dir / blob, sh(["git", "show", f"FETCH_HEAD:{blob}"]))
         elif blob in ("reading.json", "feedback.json"):
             target = dist_dir / blob

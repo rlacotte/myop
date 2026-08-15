@@ -65,21 +65,36 @@ def record_vote(
     return feedback
 
 
-def apply_feedback(items: list[FeedItem], feedback: Feedback, boost: float = 0.15) -> list[FeedItem]:
+# Bonus exprimés en « heures de fraîcheur » : un article ancien d'autant
+# d'heures fait jeu égal. Les additionner à la date garde le tri lisible —
+# multiplier un timestamp Unix par un pourcentage donnait des années de bonus
+# pour un seul vote, et la fraîcheur ne pesait plus rien.
+VOTE_HOURS = 2.0  # par vote sur la source (plafonné à ±5 votes)
+SUMMARY_HOURS = 1.0  # résumé assez fourni pour faire une brève
+SUMMARY_MIN_CHARS = 200
+
+
+def item_score(item: FeedItem, feedback: Feedback) -> float:
+    """Score de sélection, en secondes : date de publication + bonus.
+
+    Un article sans date part de zéro : il passe donc après tout article daté,
+    quel que soit son bonus.
+    """
+    if item.published is None:
+        return 0.0
+    votes = max(min(feedback.source_scores.get(item.source_name, 0), 5), -5)
+    bonus = votes * VOTE_HOURS
+    if len(item.summary) >= SUMMARY_MIN_CHARS:
+        bonus += SUMMARY_HOURS
+    return item.published.timestamp() + bonus * 3600
+
+
+def apply_feedback(items: list[FeedItem], feedback: Feedback) -> list[FeedItem]:
     """Trie les items : sources aimées devant, sujets détestés écartés.
 
-    `boost` fractionnelle — le tri reste dominé par la fraîcheur, le goût
-    fait gagner/perdre quelques places.
+    La fraîcheur domine ; le goût et la présence d'un vrai résumé départagent
+    à quelques heures près.
     """
     disliked = set(feedback.disliked_keywords)
-    kept = [
-        item for item in items
-        if not (disliked & title_tokens(item.title))
-    ]
-
-    def rank(item: FeedItem) -> tuple:
-        freshness = item.published.timestamp() if item.published else 0
-        score = feedback.source_scores.get(item.source_name, 0)
-        return (freshness * (1 + boost * max(min(score, 5), -5)))
-
-    return sorted(kept, key=rank, reverse=True)
+    kept = [item for item in items if not (disliked & title_tokens(item.title))]
+    return sorted(kept, key=lambda item: item_score(item, feedback), reverse=True)

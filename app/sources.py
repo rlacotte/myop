@@ -175,14 +175,18 @@ def _similar(a: set[str], b: set[str], threshold: float = 0.5, min_overlap: int 
     return len(overlap) / len(union) >= threshold
 
 
-def _select(items: list[FeedItem], show: Show) -> list[FeedItem]:
+def _select(
+    items: list[FeedItem], show: Show, recent_topics: list[set[str]] | None = None
+) -> list[FeedItem]:
     """Sélectionne dans l'ordre fourni en respectant max_per_source.
 
     Les quasi-doublons (même info reprise par plusieurs médias sous des
-    titres différents) sont écartés par similarité de titres.
+    titres différents) sont écartés par similarité de titres. `recent_topics`
+    étend la comparaison aux sujets des épisodes précédents : l'historique par
+    URL ne suffit pas quand un autre média reprend l'info le lendemain.
     """
     selected: list[FeedItem] = []
-    signatures: list[set[str]] = []
+    signatures: list[set[str]] = list(recent_topics or [])
     per_source: dict[str, int] = {}
     wanted = show.num_headlines
     for item in items:
@@ -207,6 +211,7 @@ async def fetch_items(
     seen: set[str] | None = None,
     client: httpx.AsyncClient | None = None,
     ranker=None,
+    recent_topics: list[set[str]] | None = None,
 ) -> FetchResult:
     """Collecte tous les flux du show, filtre, dédoublonne et sélectionne.
 
@@ -214,6 +219,7 @@ async def fetch_items(
     - les clés déjà présentes dans `seen` sont ignorées
     - `ranker` (option) reclasse les items frais avant sélection
       (utilisé par la boucle de goût)
+    - `recent_topics` (option) : sujets des épisodes précédents, écartés
     """
     now = now or datetime.now(timezone.utc)
     seen = seen or set()
@@ -264,5 +270,5 @@ async def fetch_items(
     )
     if ranker is not None:
         ordered = ranker(ordered)  # la boucle de goût départage à fraîcheur égale
-    result.selected = _select(ordered, show)
+    result.selected = _select(ordered, show, recent_topics)
     return result

@@ -125,9 +125,37 @@ def test_apply_feedback_filters_and_boosts():
     assert ranked[0].source_name == "Media B"  # la source aimée gagne des places
 
 
+def test_feedback_boost_stays_measured_against_freshness():
+    """Un vote vaut quelques heures de fraîcheur, pas quelques années.
+
+    L'ancienne pondération multipliait un timestamp Unix : un seul 👍 pesait
+    plus de 3 000 jours et écrasait complètement la fraîcheur.
+    """
+    now = datetime(2026, 8, 14, tzinfo=timezone.utc)
+    feedback = Feedback(source_scores={"Media B": 5})  # score plafonné, 10 h de bonus
+    veille = _item("Actu de la veille", "Media B", now - timedelta(hours=20))
+    matin = _item("Actu de ce matin", "Media A", now - timedelta(hours=2))
+
+    # 20 h d'écart : le bonus maximal ne suffit pas à faire remonter la veille
+    assert apply_feedback([veille, matin], feedback)[0] is matin
+    # 4 h d'écart : là, le goût départage
+    recente = _item("Actu de Media B", "Media B", now - timedelta(hours=6))
+    assert apply_feedback([recente, matin], feedback)[0] is recente
+
+
+def test_substantial_summary_breaks_a_tie():
+    now = datetime(2026, 8, 14, tzinfo=timezone.utc)
+    court = _item("Dépêche sans matière", "Media A", now - timedelta(minutes=30))
+    fourni = _item("Article détaillé", "Media A", now - timedelta(minutes=45))
+    fourni.summary = "Un résumé exploitable. " * 12  # > 200 caractères
+
+    # 15 min d'écart contre 1 h de bonus : l'article qui a de la matière passe
+    assert apply_feedback([court, fourni], Feedback())[0] is fourni
+
+
 # ------------------------------------------------------------- pipeline v2 --
 
-async def _fake_fetch(show, *, now=None, seen=None, client=None, ranker=None):
+async def _fake_fetch(show, *, now=None, seen=None, client=None, ranker=None, recent_topics=None):
     items = [
         FeedItem(
             title=f"Actu {i}", url=f"https://ex.com/{i}",
@@ -140,13 +168,15 @@ async def _fake_fetch(show, *, now=None, seen=None, client=None, ranker=None):
 
 
 async def _fake_synthesize(segments, show, config, out_path):
+    """Comme la vraie synthèse : un chapitre par segment, 600 ms chacun."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     audio = AudioSegment.silent(duration=len(segments) * 600, frame_rate=24000)
     audio.export(out_path, format="mp3", bitrate="48k")
-    return SynthResult(
-        out_path, len(audio) // 1000,
-        [{"title": "Intro", "start_ms": 0, "end_ms": len(audio)}],
-    )
+    chapters = [
+        {"title": segment.kind.title(), "start_ms": i * 600, "end_ms": (i + 1) * 600}
+        for i, segment in enumerate(segments)
+    ]
+    return SynthResult(out_path, len(audio) // 1000, chapters)
 
 
 async def _fake_weather(city, client=None):
@@ -172,8 +202,15 @@ async def test_generate_episode_end_to_end(tmp_path, monkeypatch):
     assert result.episode_id == "2026-08-14"
     assert result.show_id == "matin"
     assert result.episode_path.exists()
-    assert result.chapter_titles == ["Intro"]  # chapitres simulés
+    assert result.chapter_titles[0] == "Intro" and len(result.chapter_titles) > 3
     assert result.titles == ["Actu 0", "Actu 1", "Actu 2"]
+
+    # Transcription publiée à côté de l'audio, et annoncée dans le flux
+    episode_dir = tmp_path / "episodes" / "matin"
+    assert (episode_dir / "2026-08-14.vtt").read_text(encoding="utf-8").startswith("WEBVTT")
+    assert "Actu 0" in (episode_dir / "2026-08-14.txt").read_text(encoding="utf-8")
+    feed_xml = (tmp_path / "podcast.xml").read_text(encoding="utf-8")
+    assert "episodes/matin/2026-08-14.vtt" in feed_xml
 
     meta = json.loads((tmp_path / "episodes" / "matin" / "2026-08-14.json").read_text(encoding="utf-8"))
     assert meta["title"] == "Podcast Test — vendredi 14 août"
@@ -184,6 +221,69 @@ async def test_generate_episode_end_to_end(tmp_path, monkeypatch):
     assert (tmp_path / "index.html").exists()
     xml = (tmp_path / "podcast.xml").read_text(encoding="utf-8")
     assert "https://me.github.io/myop/episodes/matin/2026-08-14.mp3" in xml
+
+
+def test_topic_memory_round_trip_and_expiry(tmp_path):
+    """Les sujets sont mémorisés quelques jours, puis oubliés."""
+    from app.generate import TOPIC_MEMORY_DAYS, load_topics, save_topics
+
+    show = Show(id="matin")
+    day = datetime(2026, 8, 14, tzinfo=PARIS)
+    save_topics(tmp_path, show, ["Grève des trains en Île-de-France"], day)
+
+    topics = load_topics(tmp_path, show, day)
+    assert topics and {"greve", "trains", "france"} <= topics[0]
+
+    # Toujours en mémoire le lendemain…
+    assert load_topics(tmp_path, show, day + timedelta(days=1))
+    # …oublié une fois la fenêtre passée
+    assert load_topics(tmp_path, show, day + timedelta(days=TOPIC_MEMORY_DAYS + 1)) == []
+
+
+def test_save_topics_purges_old_entries(tmp_path):
+    from app.generate import _read_topics, save_topics
+
+    show = Show(id="matin")
+    day = datetime(2026, 8, 14, tzinfo=PARIS)
+    save_topics(tmp_path, show, ["Premier sujet du jour"], day)
+    save_topics(tmp_path, show, ["Deuxième sujet du jour"], day + timedelta(days=10))
+
+    entries = _read_topics(tmp_path, show)
+    assert len(entries) == 1 and entries[0].startswith("2026-08-24")
+
+
+async def test_generation_records_and_reuses_its_topics(tmp_path, monkeypatch):
+    """Ce qui est diffusé aujourd'hui est transmis en filtre à la collecte suivante."""
+    titles = ["Grève des trains en Île-de-France", "Budget de l'État présenté au Parlement"]
+    passed_topics = {}
+
+    async def _titled_fetch(show, *, now=None, seen=None, client=None, ranker=None, recent_topics=None):
+        passed_topics["value"] = recent_topics
+        items = [
+            FeedItem(title=title, url=f"https://ex.com/{i}", published=now - timedelta(hours=1),
+                     summary="Résumé.", source_name="Test", guid=f"g{i}")
+            for i, title in enumerate(titles)
+        ]
+        return FetchResult(selected=items, all_keys=[item.key for item in items])
+
+    monkeypatch.setattr(generate, "fetch_items", _titled_fetch)
+    monkeypatch.setattr(generate, "synthesize", _fake_synthesize)
+
+    config = Config(
+        shows=[Show(id="matin", title="Podcast Test",
+                    sources=[Source(name="Test", url="https://ex.com/rss")])],
+        ai={"enabled": False},
+    )
+    now = datetime(2026, 8, 14, 7, 30, tzinfo=PARIS)
+    await generate_episode(config, config.show(), tmp_path, now=now)
+
+    assert passed_topics["value"] == []  # première génération : rien en mémoire
+    topics = generate.load_topics(tmp_path, config.show(), now)
+    assert len(topics) == 2 and {"greve", "trains"} <= set().union(*topics)
+
+    # Le lendemain, la collecte reçoit les sujets de la veille
+    await generate_episode(config, config.show(), tmp_path, now=now + timedelta(days=1))
+    assert len(passed_topics["value"]) == 2
 
 
 async def test_retention_drops_old_episodes_from_disk_and_feed(tmp_path, monkeypatch):
@@ -246,7 +346,7 @@ async def test_generate_two_shows_two_feeds(tmp_path, monkeypatch):
 
 
 async def test_generate_skips_when_empty(tmp_path, monkeypatch):
-    async def _empty_fetch(show, *, now=None, seen=None, client=None, ranker=None):
+    async def _empty_fetch(show, *, now=None, seen=None, client=None, ranker=None, recent_topics=None):
         return FetchResult(selected=[], all_keys=[])
 
     monkeypatch.setattr(generate, "fetch_items", _empty_fetch)
