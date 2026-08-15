@@ -31,6 +31,10 @@ jobs:
   episode:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      # Remonté au niveau du job : le contexte `secrets` n'est pas lisible
+      # depuis le `if` d'une étape, contrairement à `env`.
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -50,15 +54,13 @@ jobs:
       # Miroir Vercel : sans le secret, l'étape est sautée et la publication
       # GitHub Pages — qui reste l'adresse officielle du flux — suffit.
       - name: Installer la CLI Vercel
-        if: ${{ secrets.VERCEL_TOKEN != '' }}
+        if: env.VERCEL_TOKEN != ''
         run: npm install --global vercel@latest
 
       - name: Générer et publier les épisodes
         env:
           # Rédaction IA via OpenRouter (facultatif : repli déterministe sinon)
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          # Miroir Vercel (facultatif)
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           git config user.name  "myop-bot"
           git config user.email "myop-bot@users.noreply.github.com"
