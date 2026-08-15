@@ -165,6 +165,7 @@ class SettingsUpdate(BaseModel):
     email: str | None = None
     category: str | None = None
     skip_if_empty: bool | None = None
+    keep_episodes: int | None = Field(default=None, ge=0, le=1000)
     ai_enabled: bool | None = None
     ai_model: str | None = None
     ai_persona: str | None = None
@@ -187,8 +188,8 @@ def put_settings(update: SettingsUpdate):
         "weather_city", "ephemeris", "delivery_hour", "enabled",
     }
     global_fields = {
-        "author", "email", "category", "skip_if_empty", "ai_enabled", "ai_model",
-        "ai_persona", "ai_system_prompt", "jingle", "chapters",
+        "author", "email", "category", "skip_if_empty", "keep_episodes", "ai_enabled",
+        "ai_model", "ai_persona", "ai_system_prompt", "jingle", "chapters",
     }
     changes = update.model_dump(exclude={"show_id"}, exclude_none=True)
 
@@ -220,6 +221,8 @@ def put_settings(update: SettingsUpdate):
                 config.audio.jingle = value
             elif key == "chapters":
                 config.audio.chapters = value
+            elif key == "keep_episodes":
+                config.publishing.keep_episodes = value
             else:
                 setattr(config, key, value)
 

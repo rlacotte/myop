@@ -87,6 +87,16 @@ class ReadingConfig(BaseModel):
     max_items: int = Field(default=3, ge=0, le=5)  # articles lus par épisode
 
 
+class PublishingConfig(BaseModel):
+    """Rétention des épisodes publiés sur GitHub Pages.
+
+    Un épisode pèse ~2 Mo : sans plafond, le site dépasse la limite douce
+    de 1 Go de GitHub Pages en moins de deux ans.
+    """
+
+    keep_episodes: int = Field(default=60, ge=0, le=1000)  # 0 = tout conserver
+
+
 class AnalyticsConfig(BaseModel):
     """Statistiques d'écoute (option, ex. GoatCounter — respectueux de la vie privée)."""
 
@@ -115,6 +125,7 @@ class Config(BaseModel):
     ai: AIConfig = Field(default_factory=AIConfig)
     audio: AudioConfig = Field(default_factory=AudioConfig)
     reading: ReadingConfig = Field(default_factory=ReadingConfig)
+    publishing: PublishingConfig = Field(default_factory=PublishingConfig)
     analytics: AnalyticsConfig = Field(default_factory=AnalyticsConfig)
     github: GitHubConfig = Field(default_factory=GitHubConfig)
 

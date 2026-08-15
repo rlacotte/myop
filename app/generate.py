@@ -266,12 +266,33 @@ async def build_draft(
     )
 
 
+def prune_episodes(dist_dir: Path, show_id: str, keep: int) -> list[str]:
+    """Ne garde que les `keep` épisodes les plus récents d'une émission.
+
+    Appelé avant l'écriture des flux : ce qui disparaît du disque disparaît
+    du flux, et `publish_dist` répercute la coupe sur GitHub Pages.
+    Les identifiants sont des dates ISO : l'ordre lexicographique suffit.
+    """
+    if keep <= 0:
+        return []
+    episodes_dir = dist_dir / "episodes" / show_id
+    if not episodes_dir.exists():
+        return []
+    ids = sorted(path.stem for path in episodes_dir.glob("*.json"))
+    dropped = ids[:-keep] if len(ids) > keep else []
+    for episode_id in dropped:
+        for suffix in (".json", ".mp3"):
+            (episodes_dir / f"{episode_id}{suffix}").unlink(missing_ok=True)
+    return dropped
+
+
 def _publish_statics(config: Config, dist_dir: Path) -> None:
     """Flux de toutes les émissions + pochettes + page publique."""
     first = next((s for s in config.shows if s.enabled), None)
     for show in config.shows:
         if not show.enabled:
             continue
+        prune_episodes(dist_dir, show.id, config.publishing.keep_episodes)
         is_first = bool(first and show.id == first.id)
         cover_name = "cover.png" if is_first else f"cover-{show.id}.png"
         make_cover(show.title, dist_dir / cover_name)

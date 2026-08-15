@@ -54,7 +54,13 @@ Toi ◄── Apple Podcasts / Overcast / page web ◄── flux RSS (GitHub Pa
 - **Page publique** : abonnement **one-tap** (Apple Podcasts, Overcast, Pocket
   Casts), QR code et **lecteur web** pour écouter sans s'abonner
 - **Un flux RSS par émission**, conformes iTunes (enclosure, guid, pochette auto)
-- **GitHub Actions horaire** : chaque émission part à son heure, heure de Paris
+- **GitHub Actions** : la planification est générée depuis tes heures de
+  livraison (deux crons par heure, été et hiver — un épisode part à l'heure
+  juste toute l'année, sans réveiller le runner 24 fois par jour)
+- **Panne signalée** : si la génération échoue, une issue GitHub s'ouvre
+  (et se commente aux échecs suivants) avec le lien du journal
+- **Rétention** : les épisodes au-delà des N derniers (60 par défaut) sortent
+  du flux et du site — GitHub Pages plafonne à 1 Go
 - **Rattrapage** : régénère n'importe quelle date passée
 - Statistiques optionnelles (GoatCounter, respectueux de la vie privée)
 
@@ -94,7 +100,7 @@ make serve   # → http://localhost:8484
 
 | Onglet | Actions |
 |---|---|
-| **Réglages** | par émission : titre, heure, voix (+ extrait écoutable, 2ᵉ voix, météo, éphéméride, volume de titres) · globaux : persona IA, jingle, chapitrage |
+| **Réglages** | par émission : titre, heure, voix (+ extrait écoutable, 2ᵉ voix, météo, éphéméride, volume de titres) · globaux : persona IA, jingle, chapitrage, rétention des épisodes |
 | **Sources** | bibliothèque 12 catégories (switch par flux, « tout activer » par catégorie, recherche), santé en direct, OPML, flux perso |
 | **Épisodes & script** | générer, **préparer/éditer le script** puis synthétiser, liste de lecture, votes 👍/👎, rattrapage par date, publication GitHub, QR code |
 

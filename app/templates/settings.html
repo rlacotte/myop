@@ -114,6 +114,12 @@
     <input type="checkbox" name="skip_if_empty" {% if config.skip_if_empty %}checked{% endif %}>
     Pas d'épisode s'il n'y a aucun nouvel article
   </label>
+  <label>Épisodes conservés en ligne (0 = tous)
+    <input name="keep_episodes" type="number" min="0" max="1000"
+           value="{{ config.publishing.keep_episodes }}">
+    <small>Au-delà, les plus anciens sortent du flux et du site — ~2 Mo chacun,
+      pour une limite GitHub Pages de 1 Go.</small>
+  </label>
 
   <div class="actions">
     <button type="submit" class="btn primary">💾 Enregistrer</button>

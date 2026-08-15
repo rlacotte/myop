@@ -2,9 +2,12 @@ name: Épisodes du jour
 
 on:
   schedule:
-    # Vérification horaire : MYOP génère les émissions dues à cette heure-ci
-    # (delivery_hour de chaque show, heure de Paris). Coût négligeable (~1 min/h).
-    - cron: "26 * * * *"
+    # Planification générée par `myop setup` / « Publier la config » depuis les
+    # heures de livraison. Deux crons par heure de livraison (UTC+1 l'hiver,
+    # UTC+2 l'été) : `myop generate --due` raisonne en heure de Paris et ignore
+    # le déclenchement hors saison.
+    - cron: "30 5 * * *"
+    - cron: "30 6 * * *"
   workflow_dispatch:
     inputs:
       force:
@@ -17,6 +20,7 @@ on:
 
 permissions:
   contents: write
+  issues: write  # ouvre une issue si la génération casse
 
 # Une seule génération à la fois, sans annuler une publication en cours
 concurrency:
@@ -57,6 +61,26 @@ jobs:
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             ARGS="$ARGS --all"  # déclenchement manuel : toutes les émissions
           else
-            ARGS="$ARGS --due"  # cron horaire : seulement les émissions de l'heure
+            ARGS="$ARGS --due"  # cron : seulement les émissions dues à cette heure
           fi
           uv run myop generate $ARGS
+
+      # Sans cela, une panne se remarque seulement à l'épisode manquant.
+      - name: Signaler l'échec
+        if: failure()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create myop-panne --color B60205 \
+            --description "Génération quotidienne en échec" 2>/dev/null || true
+          NUMBER=$(gh issue list --label myop-panne --state open --limit 1 \
+            --json number --jq '.[0].number // empty')
+          if [ -n "$NUMBER" ]; then
+            gh issue comment "$NUMBER" --body "Nouvel échec : $RUN_URL"
+          else
+            gh issue create --label myop-panne \
+              --title "MYOP : la génération quotidienne est en échec" \
+              --body "$(printf 'La génération a échoué.\n\nJournal : %s\n\nDiagnostic local : `uv run myop doctor`.\nCette issue sera commentée aux échecs suivants — referme-la une fois le problème réglé.' "$RUN_URL")"
+          fi

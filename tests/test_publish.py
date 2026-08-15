@@ -5,7 +5,15 @@ import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from app.publish import _merge_key_set, cron_for, pages_base_for, update_workflow_cron
+from app.config import Config, Show
+from app.publish import (
+    _merge_key_set,
+    cron_for,
+    crons_for,
+    pages_base_for,
+    prune_published_episodes,
+    update_workflow_schedule,
+)
 
 PARIS = ZoneInfo("Europe/Paris")
 
@@ -13,8 +21,12 @@ WORKFLOW_SAMPLE = """name: Épisode quotidien
 
 on:
   schedule:
-    - cron: "30 5 * * *"
+    # commentaire à préserver
+    - cron: "26 * * * *"
   workflow_dispatch: {}
+
+permissions:
+  contents: write
 """
 
 
@@ -36,15 +48,54 @@ def test_cron_crosses_midnight():
     assert cron_for("00:30", now=summer) == "30 22 * * *"
 
 
-def test_update_workflow_cron_rewrites_line(tmp_path):
+def test_crons_cover_both_daylight_saving_variants():
+    """Une heure de livraison → deux crons UTC, pour être juste toute l'année."""
+    config = Config(shows=[Show(id="matin", delivery_hour="07:30")])
+    assert crons_for(config, reference=datetime(2026, 8, 14, tzinfo=PARIS)) == [
+        "30 5 * * *",  # été
+        "30 6 * * *",  # hiver
+    ]
+
+
+def test_crons_deduplicate_and_ignore_disabled_shows():
+    config = Config(
+        shows=[
+            Show(id="matin", delivery_hour="07:30"),
+            Show(id="autre", delivery_hour="07:30"),  # même heure : un seul cron
+            Show(id="soir", delivery_hour="18:00"),
+            Show(id="pause", delivery_hour="23:00", enabled=False),
+        ]
+    )
+    crons = crons_for(config, reference=datetime(2026, 8, 14, tzinfo=PARIS))
+    assert crons == ["30 5 * * *", "30 6 * * *", "0 16 * * *", "0 17 * * *"]
+    assert len(crons) == 4  # 24 exécutions/jour → 4
+
+
+def test_update_workflow_schedule_rewrites_the_block(tmp_path):
     workflow = tmp_path / "daily.yml"
     workflow.write_text(WORKFLOW_SAMPLE, encoding="utf-8")
-    update_workflow_cron("08:00", path=workflow)
+    config = Config(shows=[Show(id="matin", delivery_hour="08:00")])
+
+    update_workflow_schedule(config, path=workflow)
 
     content = workflow.read_text(encoding="utf-8")
-    match = re.search(r'- cron: "([^"]+)"', content)
-    assert match and match.group(1) == "0 6 * * *"  # 8h Paris en été = 6h UTC
-    assert "workflow_dispatch" in content  # le reste du workflow est intact
+    assert re.findall(r'- cron: "([^"]+)"', content) == ["0 6 * * *", "0 7 * * *"]
+    # Indentation, commentaire et reste du workflow intacts
+    assert '    - cron: "0 6 * * *"\n' in content
+    assert "# commentaire à préserver" in content
+    assert "workflow_dispatch" in content and "permissions:" in content
+
+
+def test_update_workflow_schedule_is_idempotent(tmp_path):
+    workflow = tmp_path / "daily.yml"
+    workflow.write_text(WORKFLOW_SAMPLE, encoding="utf-8")
+    config = Config(shows=[Show(id="matin", delivery_hour="08:00")])
+
+    update_workflow_schedule(config, path=workflow)
+    once = workflow.read_text(encoding="utf-8")
+    update_workflow_schedule(config, path=workflow)
+
+    assert workflow.read_text(encoding="utf-8") == once
 
 
 def test_pages_base_for_project_and_user_site():
@@ -79,3 +130,57 @@ def test_merge_key_set_creates_missing_file(tmp_path):
     _merge_key_set(local, json.dumps(["x"]))
 
     assert json.loads(local.read_text(encoding="utf-8")) == ["x"]
+
+
+# ------------------------------------------------------ rétention gh-pages ---
+
+def _episodes(root, show_id: str, ids: list[str], *, audio: bool = True) -> None:
+    folder = root / "episodes" / show_id
+    folder.mkdir(parents=True, exist_ok=True)
+    for episode_id in ids:
+        (folder / f"{episode_id}.json").write_text("{}", encoding="utf-8")
+        if audio:
+            (folder / f"{episode_id}.mp3").write_bytes(b"x")
+
+
+def test_prune_published_removes_episodes_older_than_the_local_window(tmp_path):
+    dist, worktree = tmp_path / "dist", tmp_path / "publish"
+    _episodes(dist, "matin", ["2026-08-13", "2026-08-14", "2026-08-15"], audio=False)
+    _episodes(worktree, "matin", ["2026-08-11", "2026-08-12", "2026-08-13", "2026-08-14"])
+
+    removed = prune_published_episodes(dist, worktree, keep=3)
+
+    published = {p.name for p in (worktree / "episodes" / "matin").iterdir()}
+    assert published == {"2026-08-13.json", "2026-08-13.mp3", "2026-08-14.json", "2026-08-14.mp3"}
+    assert len(removed) == 4  # les .json et .mp3 des 11 et 12 août
+
+
+def test_prune_published_does_nothing_without_enough_local_history(tmp_path):
+    """Publier sans avoir récupéré l'historique distant ne doit rien effacer."""
+    dist, worktree = tmp_path / "dist", tmp_path / "publish"
+    _episodes(dist, "matin", ["2026-08-15"], audio=False)
+    _episodes(worktree, "matin", ["2026-08-01", "2026-08-02", "2026-08-15"])
+
+    assert prune_published_episodes(dist, worktree, keep=3) == []
+    assert len(list((worktree / "episodes" / "matin").iterdir())) == 6
+
+
+def test_prune_published_is_per_show(tmp_path):
+    dist, worktree = tmp_path / "dist", tmp_path / "publish"
+    _episodes(dist, "matin", ["2026-08-14", "2026-08-15"], audio=False)
+    _episodes(dist, "soir", ["2026-08-15"], audio=False)
+    _episodes(worktree, "matin", ["2026-08-01", "2026-08-14", "2026-08-15"])
+    _episodes(worktree, "soir", ["2026-08-01", "2026-08-15"])
+
+    prune_published_episodes(dist, worktree, keep=2)
+
+    assert not (worktree / "episodes" / "matin" / "2026-08-01.mp3").exists()
+    assert (worktree / "episodes" / "soir" / "2026-08-01.mp3").exists()  # trop peu d'historique
+
+
+def test_prune_published_disabled_by_zero(tmp_path):
+    dist, worktree = tmp_path / "dist", tmp_path / "publish"
+    _episodes(dist, "matin", ["2026-08-15"], audio=False)
+    _episodes(worktree, "matin", ["2026-01-01", "2026-08-15"])
+
+    assert prune_published_episodes(dist, worktree, keep=0) == []

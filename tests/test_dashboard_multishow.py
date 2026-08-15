@@ -120,6 +120,16 @@ def test_script_render_reports_under_the_show_key(client, monkeypatch):
     dashboard._jobs.clear()
 
 
+def test_retention_setting_is_saved_globally(client, two_shows):
+    from app.config import load_config
+
+    assert client.put("/api/settings", json={"show_id": "soir", "keep_episodes": 10}).status_code == 200
+    assert load_config(two_shows).publishing.keep_episodes == 10
+
+    # Bornes du modèle respectées
+    assert client.put("/api/settings", json={"keep_episodes": -1}).status_code == 422
+
+
 def test_script_render_refuses_empty_script(client):
     response = client.post("/api/script/render", json={"show_id": "soir", "segments": []})
     assert response.status_code == 400

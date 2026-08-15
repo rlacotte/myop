@@ -40,13 +40,44 @@ def cron_for(delivery_hour: str, *, now: datetime | None = None) -> str:
     return f"{utc_time.minute} {utc_time.hour} * * *"
 
 
-def update_workflow_cron(delivery_hour: str, path: Path = WORKFLOW_PATH) -> None:
-    """Réécrit la ligne cron du workflow avec l'heure de livraison choisie."""
+def crons_for(config, *, reference: datetime | None = None) -> list[str]:
+    """Crons UTC couvrant les heures de livraison, heure d'été comme heure d'hiver.
+
+    GitHub Actions ne planifie qu'en UTC : une émission de 7h30 à Paris tombe
+    à 5h30 UTC l'été et 6h30 l'hiver. On déclare les deux, et `myop generate
+    --due` (qui raisonne en heure de Paris) ignore le déclenchement hors saison.
+
+    Sans cela, la seule façon d'être juste toute l'année était un cron horaire,
+    soit 24 exécutions par jour dont 23 sans rien à produire.
+    """
+    reference = reference or datetime.now(tz=PARIS)
+    seasons = [
+        reference.replace(month=7, day=1),  # UTC+2
+        reference.replace(month=1, day=15),  # UTC+1
+    ]
+    hours = {s.delivery_hour for s in config.shows if s.enabled}
+    crons = {cron_for(hour, now=season) for hour in hours for season in seasons}
+    return sorted(crons, key=lambda c: [int(part) for part in c.split()[:2][::-1]])
+
+
+# Bloc de lignes « - cron: "…" » consécutives dans le workflow
+_CRON_BLOCK = re.compile(r'( *)- cron: "[^"]*"\n(?:\s*- cron: "[^"]*"\n)*')
+
+
+def update_workflow_schedule(config, path: Path = WORKFLOW_PATH) -> list[str]:
+    """Réécrit la planification du workflow d'après les heures de livraison."""
+    crons = crons_for(config)
+    if not crons or not path.exists():
+        return []
     content = path.read_text(encoding="utf-8")
-    new_cron = cron_for(delivery_hour)
-    updated, count = re.subn(r'- cron: "[^"]*"', f'- cron: "{new_cron}"', content, count=1)
-    if count:
-        path.write_text(updated, encoding="utf-8")
+    match = _CRON_BLOCK.search(content)
+    if not match:
+        return []
+    indent = match.group(1)
+    block = "".join(f'{indent}- cron: "{cron}"\n' for cron in crons)
+    if block != match.group(0):
+        path.write_text(content[: match.start()] + block + content[match.end():], encoding="utf-8")
+    return crons
 
 
 def fetch_existing(dist_dir: Path) -> None:
@@ -97,11 +128,52 @@ def _merge_key_set(local_file: Path, remote_content: str) -> None:
     local_file.write_text(json.dumps(sorted(remote | local), ensure_ascii=False), encoding="utf-8")
 
 
-def publish_dist(dist_dir: Path | None = None, message: str = "nouvel épisode") -> None:
-    """Publie le contenu de dist/ sur la branche gh-pages (sans rien y supprimer)."""
+def prune_published_episodes(dist_dir: Path, worktree: Path, keep: int) -> list[str]:
+    """Supprime de gh-pages les épisodes plus anciens que ceux gardés en local.
+
+    Prudence volontaire : tant que le local ne contient pas `keep` épisodes
+    d'une émission, on ne touche à rien. Une publication faite sans avoir
+    récupéré l'historique distant ne peut donc pas vider le site.
+    """
+    removed: list[str] = []
+    local_root = dist_dir / "episodes"
+    if keep <= 0 or not local_root.exists():
+        return removed
+    for show_dir in sorted(local_root.iterdir()):
+        if not show_dir.is_dir():
+            continue
+        kept = sorted(path.stem for path in show_dir.glob("*.json"))
+        if len(kept) < keep:
+            continue
+        oldest_kept = kept[0]
+        published = worktree / "episodes" / show_dir.name
+        if not published.exists():
+            continue
+        for path in sorted(published.iterdir()):
+            if path.is_file() and path.stem < oldest_kept:
+                path.unlink()
+                removed.append(f"{show_dir.name}/{path.name}")
+    return removed
+
+
+def publish_dist(
+    dist_dir: Path | None = None,
+    message: str = "nouvel épisode",
+    *,
+    keep_episodes: int | None = None,
+) -> None:
+    """Publie le contenu de dist/ sur la branche gh-pages.
+
+    Les épisodes déjà en ligne sont conservés, à l'exception de ceux que la
+    rétention (config `publishing.keep_episodes`) fait sortir du flux.
+    """
     dist_dir = dist_dir or ROOT / "dist"
     if not dist_dir.exists():
         raise RuntimeError("Rien à publier : dist/ est absent.")
+    if keep_episodes is None:
+        from .config import load_config
+
+        keep_episodes = load_config().publishing.keep_episodes
 
     if PUBLISH_DIR.exists():
         sh(["git", "worktree", "remove", "--force", str(PUBLISH_DIR)])
@@ -124,6 +196,10 @@ def publish_dist(dist_dir: Path | None = None, message: str = "nouvel épisode")
             shutil.copytree(item, target, dirs_exist_ok=True)
         else:
             shutil.copy2(item, target)
+
+    removed = prune_published_episodes(dist_dir, PUBLISH_DIR, keep_episodes)
+    if removed:
+        print(f"   🧹 {len(removed)} épisode(s) retiré(s) du site (rétention : {keep_episodes})")
 
     sh(["git", "add", "-A"], cwd=PUBLISH_DIR)
     status = sh(["git", "status", "--porcelain"], cwd=PUBLISH_DIR)
@@ -162,7 +238,14 @@ def current_branch() -> str:
 
 
 def push_config(config_path: Path) -> None:
-    """Committe config + workflow + assets et pousse la branche courante."""
+    """Committe config + workflow + assets et pousse la branche courante.
+
+    La planification du workflow est régénérée au passage : le cron poussé
+    correspond toujours aux heures de livraison enregistrées.
+    """
+    from .config import load_config
+
+    update_workflow_schedule(load_config(config_path))
     files = [str(config_path), str(WORKFLOW_PATH)]
     assets = ROOT / "assets"
     if assets.exists():

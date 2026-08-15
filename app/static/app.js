@@ -115,7 +115,7 @@ if (document.body.dataset.page === "settings") {
     for (const box of ["enabled", "ephemeris", "ai_enabled", "jingle", "chapters", "skip_if_empty"]) {
       payload[box] = fd.get(box) === "on";
     }
-    for (const key of ["num_headlines", "num_briefs", "max_brief_chars", "max_per_source"]) {
+    for (const key of ["num_headlines", "num_briefs", "max_brief_chars", "max_per_source", "keep_episodes"]) {
       if (payload[key] !== undefined) payload[key] = parseInt(payload[key], 10);
     }
     if (!payload.voice_co) payload.voice_co = "";

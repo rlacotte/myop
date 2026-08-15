@@ -186,6 +186,41 @@ async def test_generate_episode_end_to_end(tmp_path, monkeypatch):
     assert "https://me.github.io/myop/episodes/matin/2026-08-14.mp3" in xml
 
 
+async def test_retention_drops_old_episodes_from_disk_and_feed(tmp_path, monkeypatch):
+    """La rétention borne le site : ce qui sort du disque sort aussi du flux."""
+    monkeypatch.setattr(generate, "fetch_items", _fake_fetch)
+    monkeypatch.setattr(generate, "synthesize", _fake_synthesize)
+
+    episodes_dir = tmp_path / "episodes" / "matin"
+    episodes_dir.mkdir(parents=True)
+    for day in range(1, 6):  # 5 épisodes déjà publiés
+        episode_id = f"2026-08-0{day}"
+        (episodes_dir / f"{episode_id}.json").write_text(
+            json.dumps({"id": episode_id, "title": f"Épisode {day}",
+                        "pubDate": f"{episode_id}T07:30:00+02:00", "duration": 60, "size": 1}),
+            encoding="utf-8",
+        )
+        (episodes_dir / f"{episode_id}.mp3").write_bytes(b"x")
+
+    config = Config(
+        shows=[Show(id="matin", title="Podcast Test",
+                    sources=[Source(name="Test", url="https://ex.com/rss")])],
+        ai={"enabled": False},
+        publishing={"keep_episodes": 3},
+        github={"pages_base": "https://me.github.io/myop/"},
+    )
+    result = await generate_episode(
+        config, config.show(), tmp_path, now=datetime(2026, 8, 14, 7, 30, tzinfo=PARIS)
+    )
+
+    assert result.ok
+    kept = sorted(p.stem for p in episodes_dir.glob("*.json"))
+    assert kept == ["2026-08-04", "2026-08-05", "2026-08-14"]
+    assert not (episodes_dir / "2026-08-01.mp3").exists()  # audio retiré avec sa fiche
+    xml = (tmp_path / "podcast.xml").read_text(encoding="utf-8")
+    assert "2026-08-14.mp3" in xml and "2026-08-01.mp3" not in xml
+
+
 async def test_generate_two_shows_two_feeds(tmp_path, monkeypatch):
     monkeypatch.setattr(generate, "fetch_items", _fake_fetch)
     monkeypatch.setattr(generate, "synthesize", _fake_synthesize)
