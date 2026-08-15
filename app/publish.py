@@ -200,12 +200,32 @@ def deploy_vercel(directory: Path, config=None) -> str | None:
     if os.environ.get("VERCEL_TOKEN"):
         command += ["--token", os.environ["VERCEL_TOKEN"]]
     try:
-        url = sh(command, cwd=directory).splitlines()[-1].strip()
-    except (RuntimeError, IndexError) as exc:
+        output = sh(command, cwd=directory)
+    except RuntimeError as exc:
         print(f"   ⚠️  Miroir Vercel non mis à jour : {exc}")
         return None
-    print(f"   🌍 Miroir Vercel → {url}")
-    return url
+    print(f"   🌍 Miroir Vercel → {vercel_url(output) or 'déployé'}")
+    return vercel_url(output)
+
+
+# Hors terminal, la CLI répond en JSON : prendre la dernière ligne renvoyait
+# l'accolade fermante. On cherche donc l'URL du déploiement dans la sortie.
+_VERCEL_URL = re.compile(r"https://[\w.-]+\.vercel\.app")
+
+
+def vercel_url(output: str) -> str | None:
+    """URL de production extraite de la sortie de la CLI Vercel.
+
+    L'alias (« Aliased: … ») est l'adresse stable du projet ; à défaut on
+    retombe sur l'URL du déploiement.
+    """
+    for line in output.splitlines():
+        if line.strip().startswith("Aliased:"):
+            found = _VERCEL_URL.search(line)
+            if found:
+                return found.group(0)
+    found = _VERCEL_URL.search(output)
+    return found.group(0) if found else None
 
 
 def publish_dist(

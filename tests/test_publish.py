@@ -178,6 +178,49 @@ def test_prune_published_is_per_show(tmp_path):
     assert (worktree / "episodes" / "soir" / "2026-08-01.mp3").exists()  # trop peu d'historique
 
 
+def test_vercel_url_prefers_the_stable_alias():
+    """La CLI répond en JSON hors terminal : l'URL se cherche, ne se déduit pas."""
+    from app.publish import vercel_url
+
+    output = (
+        "Production: https://myop-6tstxhxpz-rens-projects.vercel.app [4s]\n"
+        "Completing...\n"
+        "Aliased: https://myop-flax.vercel.app [4s]\n"
+        '{\n  "status": "ok",\n  "message": "Deployment ready."\n}'
+    )
+    assert vercel_url(output) == "https://myop-flax.vercel.app"
+
+
+def test_vercel_url_falls_back_to_the_deployment_url():
+    from app.publish import vercel_url
+
+    assert (
+        vercel_url('{"url": "https://myop-abc.vercel.app", "readyState": "READY"}')
+        == "https://myop-abc.vercel.app"
+    )
+    assert vercel_url("rien d'utile ici") is None
+
+
+def test_link_vercel_project_writes_the_link(tmp_path):
+    from app.config import Config
+    from app.publish import link_vercel_project
+
+    config = Config(publishing={"vercel_project_id": "prj_1", "vercel_org_id": "team_1"})
+    assert link_vercel_project(tmp_path, config) is True
+    assert json.loads((tmp_path / ".vercel" / "project.json").read_text(encoding="utf-8")) == {
+        "projectId": "prj_1",
+        "orgId": "team_1",
+    }
+
+
+def test_link_vercel_project_needs_both_identifiers(tmp_path):
+    from app.config import Config
+    from app.publish import link_vercel_project
+
+    assert link_vercel_project(tmp_path, Config()) is False
+    assert not (tmp_path / ".vercel").exists()
+
+
 def test_prune_published_disabled_by_zero(tmp_path):
     dist, worktree = tmp_path / "dist", tmp_path / "publish"
     _episodes(dist, "matin", ["2026-08-15"], audio=False)
