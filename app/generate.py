@@ -143,15 +143,27 @@ def save_topics(dist_dir: Path, show: Show, titles: list[str], now: datetime) ->
     )
 
 
-def _load_font(size: int):
-    """Police système pour les pochettes (fallback multi-OS)."""
+def _load_font(size: int, serif: bool = False):
+    """Police système pour les pochettes (fallback multi-OS).
+
+    Le titrage cherche d'abord un serif, pour rester dans la même voix
+    typographique que le dashboard et la page publique.
+    """
     from PIL import ImageFont
 
-    for candidate in [
+    candidates = [
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf",  # macOS
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux CI
         "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
-    ]:
+    ]
+    if serif:
+        candidates = [
+            "/System/Library/Fonts/Supplemental/Georgia Bold.ttf",  # macOS
+            "/System/Library/Fonts/Supplemental/Times New Roman Bold.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",  # Linux CI
+            "/usr/share/fonts/TTF/DejaVuSerif-Bold.ttf",
+        ] + candidates
+    for candidate in candidates:
         if Path(candidate).exists():
             return ImageFont.truetype(candidate, size)
     try:
@@ -160,8 +172,16 @@ def _load_font(size: int):
         return ImageFont.load_default()
 
 
+# Pochette : mêmes couleurs que le dashboard et la page publique — papier
+# crème, encre chaude, un seul accent vermillon.
+COVER_PAPER = (250, 248, 245)
+COVER_INK = (26, 23, 20)
+COVER_ACCENT = (228, 87, 46)
+COVER_MUTED = (138, 130, 118)
+
+
 def make_cover(title: str, out_path: Path, subtitle: str = "ton briefing quotidien") -> Path:
-    """Pochette 1400×1400 (titre sur fond dégradé) si absente."""
+    """Pochette 1400×1400 si absente : titre en serif sur fond papier."""
     from PIL import Image, ImageDraw
 
     if out_path.exists():
@@ -169,41 +189,36 @@ def make_cover(title: str, out_path: Path, subtitle: str = "ton briefing quotidi
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     size = 1400
-    image = Image.new("RGB", (size, size))
-    draw = ImageDraw.Draw(image)
-    # Dégradé vertical bleu nuit → violet
-    top, bottom = (18, 20, 48), (88, 44, 130)
-    for y in range(size):
-        t = y / size
-        color = tuple(int(top[i] + (bottom[i] - top[i]) * t) for i in range(3))
-        draw.line([(0, y), (size, y)], fill=color)
-    # Cercles décoratifs
-    for cx, cy, r, alpha in [(1150, 260, 340, 40), (260, 1150, 420, 36), (700, 760, 900, 22)]:
-        overlay = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-        od = ImageDraw.Draw(overlay)
-        od.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(255, 255, 255, alpha))
-        image = Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
+    margin = 110
+    image = Image.new("RGB", (size, size), COVER_PAPER)
     draw = ImageDraw.Draw(image)
 
-    draw.text((70, 120), "MYOP", fill=(150, 200, 255), font=_load_font(90))
-    # Titre centré, retour à la ligne automatique
-    font = _load_font(170)
-    words = title.split()
+    # Un aplat vermillon en bas de la pochette, coupé net : le seul geste
+    # graphique, lisible même en vignette de 60 px dans un lecteur.
+    draw.rectangle([0, size - 300, size, size], fill=COVER_ACCENT)
+    draw.ellipse([size - 420, size - 700, size - 60, size - 340], fill=COVER_ACCENT)
+
+    draw.text((margin, margin), "MYOP", fill=COVER_ACCENT, font=_load_font(74))
+
+    # Titre en serif, centré verticalement, retour à la ligne automatique
+    font = _load_font(168, serif=True)
     lines, line = [], ""
-    for word in words:
+    for word in title.split():
         trial = f"{line} {word}".strip()
-        if draw.textlength(trial, font=font) > size - 140:
+        if draw.textlength(trial, font=font) > size - 2 * margin:
             lines.append(line)
             line = word
         else:
             line = trial
     lines.append(line)
-    y = (size - len(lines) * 200) // 2 + 40
-    for text_line in lines[:3]:
-        draw.text((70, y), text_line, fill=(255, 255, 255), font=font)
-        y += 200
-    draw.text((70, size - 130), subtitle, fill=(200, 190, 230), font=_load_font(64))
+    lines = [l for l in lines if l][:3]
 
+    y = (size - 300 - len(lines) * 190) // 2 + 40
+    for text_line in lines:
+        draw.text((margin, y), text_line, fill=COVER_INK, font=font)
+        y += 190
+
+    draw.text((margin, y + 24), subtitle, fill=COVER_MUTED, font=_load_font(56))
     image.save(out_path, "PNG")
     return out_path
 

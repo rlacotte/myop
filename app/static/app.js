@@ -51,8 +51,11 @@ async function loadShowTabs() {
   for (const show of state.shows) {
     const tab = document.createElement("a");
     tab.href = `${location.pathname}?show=${encodeURIComponent(show.id)}`;
-    tab.textContent = show.title + (show.enabled ? "" : " ⏸");
     tab.className = "show-tab" + (show.id === state.current_show ? " active" : "");
+    tab.title = show.enabled ? `${show.title} — ${show.delivery_hour}` : `${show.title} — en pause`;
+    tab.innerHTML = `<span class="dot${show.enabled ? "" : " off"}"></span>
+      <span class="tab-name"></span>`;
+    tab.querySelector(".tab-name").textContent = show.title;
     box.append(tab);
   }
   $("#show-add")?.addEventListener("click", async () => {
@@ -169,33 +172,37 @@ if (document.body.dataset.page === "sources") {
       if (!shown.length) continue;
 
       const allOn = feeds.every((f) => f.active);
+      const active = feeds.filter((f) => f.active).length;
       const section = document.createElement("div");
-      section.className = "category";
+      section.className = "cat";
       section.innerHTML = `
-        <div class="category-head">
-          <span class="category-name">${category}</span>
-          <span class="badge">${feeds.filter((f) => f.active).length}/${feeds.length}</span>
-          <button class="btn small ghost" data-category="${category}" data-enable="${allOn ? "false" : "true"}">
+        <div class="cat-head">
+          <h3></h3>
+          <span class="pill${active ? " ok" : ""}">${active}/${feeds.length}</span>
+          <span class="grow"></span>
+          <button class="btn tiny ghost" data-category="${category}" data-enable="${allOn ? "false" : "true"}">
             ${allOn ? "Tout retirer" : "Tout activer"}
           </button>
-        </div>`;
+        </div>
+        <div class="feeds"></div>`;
+      section.querySelector("h3").textContent = category;
+      const grid = section.querySelector(".feeds");
       for (const feed of shown) {
-        const row = document.createElement("div");
-        row.className = `feed-row${feed.active ? " on" : ""}`;
+        const row = document.createElement("label");
+        row.className = `feed${feed.active ? " on" : ""}`;
+        row.title = feed.active ? "Désactiver" : "Activer";
         row.innerHTML = `
-          <label class="switch" title="${feed.active ? "Désactiver" : "Activer"}">
-            <input type="checkbox" data-url="${feed.url}" ${feed.active ? "checked" : ""}>
-            <span class="slider"></span>
-          </label>
-          <span class="source-name">${feed.name}</span>
-          <button class="btn small ghost" data-test="${feed.url}" data-name="${feed.name}">Tester</button>`;
-        section.append(row);
+          <input type="checkbox" data-url="${feed.url}" ${feed.active ? "checked" : ""}>
+          <span class="n"></span>
+          <button type="button" class="btn tiny ghost" data-test="${feed.url}" data-name="${feed.name}">test</button>`;
+        row.querySelector(".n").textContent = feed.name;
+        grid.append(row);
       }
       libraryList.append(section);
     }
 
     if (!libraryList.children.length) {
-      libraryList.innerHTML = '<p class="loading">Aucune source ne correspond à ta recherche.</p>';
+      libraryList.innerHTML = '<div class="empty">Aucune source ne correspond à ta recherche.</div>';
     }
   }
 
@@ -203,19 +210,21 @@ if (document.body.dataset.page === "sources") {
     customList.innerHTML = "";
     if (!custom.length) {
       customList.innerHTML =
-        '<p class="hint">Aucune source personnalisée — ajoute ci-dessous n\'importe quel flux RSS.</p>';
+        '<div class="empty" style="margin-top:16px">Aucun flux perso pour l\'instant.</div>';
       return;
     }
     const list = document.createElement("div");
-    list.className = "custom-list";
+    list.className = "rows";
+    list.style.marginTop = "10px";
     custom.forEach((source) => {
       const row = document.createElement("div");
-      row.className = "source-row";
+      row.className = "r";
       row.innerHTML = `
-        <span class="source-name">${source.name}</span>
-        <span class="source-url">${source.url}</span>
-        <button class="btn small" data-test="${source.url}" data-name="${source.name}">Tester</button>
-        <button class="btn small danger" data-delete="${source.index}">✕</button>`;
+        <div class="main"><div class="t"></div><div class="m"></div></div>
+        <button class="btn tiny ghost" data-test="${source.url}" data-name="${source.name}">test</button>
+        <button class="btn tiny danger" data-delete="${source.index}">✕</button>`;
+      row.querySelector(".t").textContent = source.name;
+      row.querySelector(".m").textContent = source.url;
       list.append(row);
     });
     customList.append(list);
@@ -271,16 +280,23 @@ if (document.body.dataset.page === "sources") {
     box.hidden = false;
     box.scrollIntoView({ behavior: "smooth", block: "nearest" });
     $("#preview-title").textContent = `Test — ${btn.dataset.name}`;
-    $("#preview-items").innerHTML = '<li class="loading">Chargement…</li>';
+    $("#preview-items").className = "rows";
+    $("#preview-items").innerHTML = '<p class="loading">Chargement…</p>';
     try {
       const data = await api(`/sources/preview?url=${encodeURIComponent(btn.dataset.test)}`);
       $("#preview-title").textContent = `Test — ${data.feed_title || btn.dataset.name}`;
-      $("#preview-items").innerHTML =
-        data.items
-          .map((item) => `<li>${item.title}<span class="date">${item.date}</span></li>`)
-          .join("") || '<li class="loading">Aucun item dans ce flux.</li>';
+      const box = $("#preview-items");
+      box.innerHTML = "";
+      if (!data.items.length) box.innerHTML = '<div class="empty">Aucun item dans ce flux.</div>';
+      for (const item of data.items) {
+        const row = document.createElement("div");
+        row.className = "r";
+        row.innerHTML = `<div class="main"><div class="t"></div></div><span class="m">${item.date}</span>`;
+        row.querySelector(".t").textContent = item.title;
+        box.append(row);
+      }
     } catch (err) {
-      $("#preview-items").innerHTML = `<li class="loading">⚠️ ${err.message}</li>`;
+      $("#preview-items").innerHTML = `<div class="status ko">${err.message}</div>`;
     }
   });
 
@@ -318,18 +334,24 @@ if (document.body.dataset.page === "sources") {
     const box = $("#health-box");
     btn.disabled = true;
     box.hidden = false;
-    box.innerHTML = '<span class="loading">🩺 Vérification en direct…</span>';
+    box.className = "status";
+    box.innerHTML = '<span class="loading">Vérification en direct…</span>';
     try {
       const results = await api(`/sources/health?${showQuery()}`);
-      box.innerHTML = results
-        .map((r) =>
-          r.ok
-            ? `<div>✅ ${r.name} — ${r.items} items, dernier : ${r.latest} (${r.ms} ms)</div>`
-            : `<div>❌ ${r.name} — ${r.error}</div>`
-        )
-        .join("");
+      const down = results.filter((r) => !r.ok).length;
+      box.className = "status" + (down ? " ko" : " ok");
+      box.innerHTML =
+        `<strong>${results.length - down}/${results.length} sources répondent.</strong>` +
+        results
+          .map((r) =>
+            r.ok
+              ? `<div class="badge-ok">✓ ${r.name} — ${r.items} items, dernier : ${r.latest} (${r.ms} ms)</div>`
+              : `<div class="badge-ko">✕ ${r.name} — ${r.error}</div>`
+          )
+          .join("");
     } catch (err) {
-      box.innerHTML = `<div>⚠️ ${err.message}</div>`;
+      box.className = "status ko";
+      box.innerHTML = err.message;
     } finally {
       btn.disabled = false;
     }
@@ -358,10 +380,12 @@ if (document.body.dataset.page === "sources") {
 
 /* ----------------------------------------------------------- page : épisodes */
 
-if (document.body.dataset.page === "episodes") {
+/* Accueil et épisodes partagent la production (générer, suivre, publier) : le
+   tableau de bord n'est pas une page de plus, c'est la même machine vue de haut. */
+if (["home", "episodes"].includes(document.body.dataset.page)) {
   const genBtn = $("#btn-generate");
   const genStatus = $("#gen-status");
-  let lastTitles = [];
+  const hasEditor = !!$("#draft-card");
 
   const qr = $("#qr");
   if (qr) {
@@ -371,36 +395,43 @@ if (document.body.dataset.page === "episodes") {
 
   async function loadEpisodes(data) {
     const box = $("#episodes-list");
-    const episodes = data || (await api(`/episodes?${showQuery()}`));
+    if (!box) return;
+    const limit = Number(box.dataset.limit || 0);
+    let episodes = data || (await api(`/episodes?${showQuery()}`));
     if (!episodes.length) {
       box.innerHTML =
-        '<p class="loading">Aucun épisode pour l\'instant — clique sur « Générer maintenant ».</p>';
+        '<div class="empty">Aucun épisode pour l\'instant — lance « Générer maintenant ».</div>';
       return;
     }
+    if (limit) episodes = episodes.slice(0, limit);
     box.innerHTML = "";
+    box.className = "rows";
     for (const ep of episodes) {
       const row = document.createElement("div");
-      row.className = "episode";
+      row.className = "r";
       const date = new Date(ep.pubDate);
       row.innerHTML = `
+        <div class="main">
+          <div class="t"></div>
+          <div class="m">${date.toLocaleDateString("fr-FR")} · ${fmtDuration(ep.duration)} · ${Math.round(ep.size / 1024)} Ko</div>
+        </div>
         ${ep.local
           ? `<audio controls preload="none" src="${ep.audio}"></audio>`
-          : '<span class="missing">MP3 absent localement</span>'}
-        <div class="meta">
-          <strong>${ep.title}</strong>
-          <div class="desc">${ep.description || ""}</div>
-          <div class="vote"></div>
-        </div>
-        <span class="badge">${date.toLocaleDateString("fr-FR")} · ${fmtDuration(ep.duration)} · ${Math.round(ep.size / 1024)} Ko</span>`;
-      // Boucle de goût : un vote par titre du dernier épisode
-      if (episodes.indexOf(ep) === 0 && ep.description) {
-        const voteBox = row.querySelector(".vote");
+          : '<span class="pill warn">MP3 absent en local</span>'}`;
+      row.querySelector(".t").textContent = ep.title;
+      // Boucle de goût : un vote par titre du dernier épisode, sous la ligne
+      const voteBlock = document.createElement("div");
+      voteBlock.className = "vote";
+      voteBlock.innerHTML = '<div class="vote-title">Ces sujets t\'ont plu ?</div>';
+      if (episodes.indexOf(ep) === 0 && ep.description && hasEditor) {
+        const voteBox = voteBlock;
         for (const title of ep.description.split(" • ").slice(0, 6)) {
-          const chip = document.createElement("span");
+          const chip = document.createElement("div");
           chip.className = "vote-chip";
-          chip.innerHTML = `<span class="vt">${title.slice(0, 70)}</span>
-            <button class="btn tiny" data-vote="1">👍</button>
-            <button class="btn tiny danger" data-vote="0">👎</button>`;
+          chip.innerHTML = `<span class="vt"></span>
+            <button class="btn tiny ghost" data-vote="1" title="Plus de sujets comme celui-ci">▲</button>
+            <button class="btn tiny ghost" data-vote="0" title="Moins de sujets comme celui-ci">▼</button>`;
+          chip.querySelector(".vt").textContent = title.slice(0, 90);
           chip.querySelectorAll("[data-vote]").forEach((btn) =>
             btn.addEventListener("click", async () => {
               try {
@@ -427,11 +458,15 @@ if (document.body.dataset.page === "episodes") {
         }
       }
       box.append(row);
+      if (voteBlock.querySelector(".vote-chip")) box.append(voteBlock);
     }
   }
 
   function renderStatus(status) {
+    if (!genStatus) return;
+    if (!status.log?.length && !status.result) return;
     genStatus.hidden = false;
+    genStatus.className = "status" + (status.running ? " running" : status.result?.ok ? " ok" : status.result ? " ko" : "");
     let html = status.log.map((line) => `<div>${line}</div>`).join("");
     if (status.running) html += '<div class="loading">⏳ Génération en cours… (collecte, IA, synthèse vocale)</div>';
     const result = status.result;
@@ -461,20 +496,21 @@ if (document.body.dataset.page === "episodes") {
         renderStatus(status);
         if (!status.running) {
           clearInterval(pollTimer);
-          genBtn.disabled = false;
+          if (genBtn) genBtn.disabled = false;
           loadEpisodes();
+          loadOverview();
         }
       } catch (_) {}
     }, 2000);
   }
 
-  genBtn.addEventListener("click", async () => {
+  genBtn?.addEventListener("click", async () => {
     try {
       await api("/generate", {
         method: "POST",
         body: JSON.stringify({ show_id: SHOW }),
       });
-      genBtn.disabled = true;
+      if (genBtn) genBtn.disabled = true;
       toast("Génération lancée ⚡");
       pollStatus();
     } catch (err) {
@@ -487,12 +523,42 @@ if (document.body.dataset.page === "episodes") {
     if (!date) return toast("Choisis une date d'abord", "err");
     try {
       await api("/generate", { method: "POST", body: JSON.stringify({ show_id: SHOW, date }) });
-      genBtn.disabled = true;
+      if (genBtn) genBtn.disabled = true;
       toast(`Régénération du ${date} lancée ⏪`);
       pollStatus();
     } catch (err) {
       toast(err.message, "err");
     }
+  });
+
+  /* Chiffres clés du tableau de bord */
+  async function loadOverview() {
+    if (!$("#stat-sources")) return;
+    try {
+      const data = await api(`/overview?${showQuery()}`);
+      $("#stat-sources").textContent = data.sources;
+      $("#stat-episodes").textContent = data.episodes;
+      $("#stat-last").innerHTML = data.latest
+        ? new Date(data.latest.pubDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+        : "—";
+      const state = $("#hero-state");
+      if (data.running) state.className = "pill warn", state.textContent = "en cours…";
+      else if (data.has_draft) state.className = "pill cool", state.textContent = "brouillon en attente";
+      else if (!data.show.enabled) state.className = "pill", state.textContent = "en pause";
+      else state.className = "pill ok", state.textContent = "prête";
+      if (data.has_draft) {
+        $("#hero-sub").innerHTML =
+          'Un script préparé attend d\'être relu — <a href="/episodes">ouvrir l\'éditeur</a>.';
+      }
+    } catch (_) {}
+  }
+  loadOverview();
+
+  $("#btn-copy-feed")?.addEventListener("click", (event) => {
+    navigator.clipboard
+      .writeText(event.currentTarget.dataset.url)
+      .then(() => toast("URL du flux copiée ✓"))
+      .catch(() => toast("Copie impossible", "err"));
   });
 
   // Éditeur de script : préparer → retoucher → synthétiser
@@ -502,6 +568,13 @@ if (document.body.dataset.page === "episodes") {
     btn.disabled = true;
     toast("Préparation du script (collecte + rédaction)…");
     try {
+      // Depuis l'accueil, l'édition se fait sur la page dédiée : le brouillon
+      // étant enregistré côté serveur, il suffit d'y renvoyer.
+      if (!hasEditor) {
+        await api(`/script/draft?${showQuery()}`, { method: "POST" });
+        location.href = `/episodes?${showQuery()}`;
+        return;
+      }
       draftData = await api(`/script/draft?${showQuery()}`, { method: "POST" });
       renderDraft();
       $("#draft-card").scrollIntoView({ behavior: "smooth" });
@@ -672,18 +745,22 @@ if (document.body.dataset.page === "episodes") {
     if (!box) return;
     const items = await api("/reading");
     if (!items.length) {
-      box.innerHTML = '<p class="hint">Vide — colle une URL d\'article à écouter demain matin.</p>';
+      box.className = "";
+      box.innerHTML =
+        '<div class="empty" style="margin-top:16px">Vide — colle l\'URL d\'un article à écouter demain.</div>';
       return;
     }
+    box.className = "rows";
+    box.style.marginTop = "10px";
     box.innerHTML = "";
     items.forEach((item, i) => {
       const row = document.createElement("div");
-      row.className = "source-row";
+      row.className = "r";
       row.innerHTML = `
-        <span class="source-name grow" style="min-width:200px">${item.title || item.url}</span>
-        <span class="badge">${Math.round(item.chars / 1000)}k caractères</span>
-        <a class="btn small ghost" href="${item.url}" target="_blank">ouvrir</a>
-        <button class="btn small danger" data-unread="${i}">✕</button>`;
+        <div class="main"><div class="t"></div><div class="m">${Math.round(item.chars / 1000)}k signes</div></div>
+        <a class="btn tiny ghost" href="${item.url}" target="_blank">ouvrir</a>
+        <button class="btn tiny danger" data-unread="${i}">✕</button>`;
+      row.querySelector(".t").textContent = item.title || item.url;
       box.append(row);
     });
     box.querySelectorAll("[data-unread]").forEach((btn) =>

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Tableau de bord{% endblock %}
+{% block page %}home{% endblock %}
+{% block content %}
+<header class="page-head">
+  <p class="eyebrow">Émission</p>
+  <h1 id="show-title">{{ show.title }}</h1>
+  <p class="sub">{{ show.description }}</p>
+</header>
+
+<!-- Une seule action décisive, mise en avant : produire l'épisode du jour. -->
+<section class="hero">
+  <div class="card-head">
+    <div>
+      <h2>Épisode du jour</h2>
+      <p class="hint" id="hero-sub">Livraison prévue à {{ show.delivery_hour }}, heure de Paris.</p>
+    </div>
+    <span class="pill" id="hero-state">…</span>
+  </div>
+  <div class="row wrap">
+    <button id="btn-generate" class="btn primary big">Générer maintenant</button>
+    <button id="btn-draft" class="btn big">Préparer le script</button>
+  </div>
+  <div id="gen-status" class="status" hidden></div>
+</section>
+
+<section class="card flush">
+  <div class="stats">
+    <div class="stat"><div class="k">Sources</div><div class="v" id="stat-sources">—</div></div>
+    <div class="stat"><div class="k">Épisodes</div><div class="v" id="stat-episodes">—</div></div>
+    <div class="stat"><div class="k">Dernier</div><div class="v" id="stat-last">—</div></div>
+    <div class="stat"><div class="k">Livraison</div><div class="v">{{ show.delivery_hour }}</div></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h2>Derniers épisodes</h2>
+      <p class="section-sub">Écoute ici, ou depuis ton lecteur de podcast.</p>
+    </div>
+    <a class="btn small ghost" href="/episodes">Tout voir →</a>
+  </div>
+  <div id="episodes-list" data-limit="3"><p class="loading">Chargement…</p></div>
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h2>S'abonner</h2>
+      <p class="section-sub">Une seule fois, et l'épisode arrive tout seul chaque jour.</p>
+    </div>
+  </div>
+  {% if config.feed_url(show) %}
+    <div class="subscribe">
+      <div class="qr-wrap"><img id="qr" alt="QR code du flux" hidden></div>
+      <div class="grow">
+        <p class="feed-url">{{ config.feed_url(show) }}</p>
+        <div class="row wrap" style="margin-top:12px">
+          <a class="btn primary" href="{{ config.github.pages_base }}" target="_blank">Ouvrir la page publique</a>
+          <button class="btn" id="btn-copy-feed" data-url="{{ config.feed_url(show) }}">Copier l'URL du flux</button>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="empty">Flux pas encore publié — lance <code>myop setup</code> dans le terminal.</div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h2>Diffusion</h2>
+      <p class="section-sub">Pousser les réglages et les épisodes vers GitHub.</p>
+    </div>
+  </div>
+  <div class="row wrap">
+    <button id="btn-publish-config" class="btn">Publier la config</button>
+    <button id="btn-publish-dist" class="btn">Publier les épisodes</button>
+    <button id="btn-trigger" class="btn">Déclencher l'action GitHub</button>
+    <button id="btn-sync" class="btn ghost">Rafraîchir depuis GitHub</button>
+  </div>
+</section>
+{% endblock %}

@@ -2,134 +2,175 @@
 {% block title %}Réglages{% endblock %}
 {% block page %}settings{% endblock %}
 {% block content %}
-<h1>Réglages — <span id="show-title">{{ show.title }}</span></h1>
+<header class="page-head">
+  <p class="eyebrow"><span id="show-title">{{ show.title }}</span></p>
+  <h1>Réglages</h1>
+  <p class="sub">Ce qui est propre à cette émission, puis ce qui vaut pour tout le podcast.</p>
+</header>
 
-<form id="settings-form" class="card">
-  <h2>Identité de l'émission</h2>
-  <div class="grid2">
-    <label>Titre
-      <input name="title" value="{{ show.title }}" required maxlength="80">
-    </label>
-    <label>Heure de livraison (Paris)
-      <input name="delivery_hour" type="time" value="{{ show.delivery_hour }}">
-    </label>
-    <label>Statut
-      <label class="checkbox" style="margin-top:26px">
-        <input type="checkbox" name="enabled" {% if show.enabled %}checked{% endif %}>
-        Émission activée (générée chaque jour)
+<form id="settings-form">
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2>L'émission</h2>
+        <p class="section-sub">Son identité et son heure de rendez-vous.</p>
+      </div>
+    </div>
+    <div class="grid2">
+      <label>Titre
+        <input name="title" value="{{ show.title }}" required maxlength="80">
       </label>
+      <label>Heure de livraison <span class="hint">(Paris)</span>
+        <input name="delivery_hour" type="time" value="{{ show.delivery_hour }}">
+      </label>
+    </div>
+    <label>Description
+      <textarea name="description" rows="2" maxlength="300">{{ show.description }}</textarea>
     </label>
-    <label>Météo (ville, vide = désactivé)
+    <div class="grid2">
+      <label class="checkbox">
+        <input type="checkbox" name="enabled" {% if show.enabled %}checked{% endif %}>
+        Émission active
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="ephemeris" {% if show.ephemeris %}checked{% endif %}>
+        Éphéméride dans l'intro
+      </label>
+    </div>
+    <label style="margin-top:16px">Météo <span class="hint">(ville — vide pour désactiver le segment)</span>
       <input name="weather_city" value="{{ show.weather_city or '' }}" placeholder="Paris">
     </label>
-  </div>
-  <label>Description
-    <textarea name="description" rows="2" maxlength="300">{{ show.description }}</textarea>
-  </label>
-  <label class="checkbox">
-    <input type="checkbox" name="ephemeris" {% if show.ephemeris %}checked{% endif %}>
-    Éphéméride dans l'intro (jours fériés, pleine lune…)
-  </label>
+  </section>
 
-  <h2>Voix &amp; rythme</h2>
-  <div class="grid2">
-    <label>Voix principale
-      <div class="row">
-        <select name="voice" id="voice-select">
-          <option value="{{ show.voice }}">{{ show.voice }}</option>
-        </select>
-        <button type="button" id="voice-preview" class="btn ghost">▶</button>
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2>La voix</h2>
+        <p class="section-sub">Écoute un extrait avant de choisir. Une 2ᵉ voix active le dialogue.</p>
       </div>
-    </label>
-    <label>2ᵉ voix (dialogue à deux, vide = désactivé)
-      <div class="row">
-        <select name="voice_co" id="voice-co-select">
-          <option value="">— aucune —</option>
-          {% if show.voice_co %}<option value="{{ show.voice_co }}" selected>{{ show.voice_co }}</option>{% endif %}
-        </select>
-        <button type="button" id="voice-co-preview" class="btn ghost">▶</button>
+    </div>
+    <div class="grid2">
+      <label>Voix principale
+        <div class="row" style="margin-top:6px">
+          <select name="voice" id="voice-select" class="grow">
+            <option value="{{ show.voice }}">{{ show.voice }}</option>
+          </select>
+          <button type="button" id="voice-preview" class="btn">▶</button>
+        </div>
+      </label>
+      <label>Deuxième voix <span class="hint">(dialogue)</span>
+        <div class="row" style="margin-top:6px">
+          <select name="voice_co" id="voice-co-select" class="grow">
+            <option value="">— aucune —</option>
+            {% if show.voice_co %}<option value="{{ show.voice_co }}" selected>{{ show.voice_co }}</option>{% endif %}
+          </select>
+          <button type="button" id="voice-co-preview" class="btn">▶</button>
+        </div>
+      </label>
+      <label>Débit intro et conclusion
+        <input name="intro_rate" value="{{ show.intro_rate }}" placeholder="-8%">
+      </label>
+      <label>Débit des brèves
+        <input name="brief_rate" value="{{ show.brief_rate }}" placeholder="+4%">
+      </label>
+    </div>
+    <div class="grid2" style="margin-top:6px">
+      <label class="checkbox">
+        <input type="checkbox" name="jingle" {% if config.audio.jingle %}checked{% endif %}>
+        Jingle et transitions
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="chapters" {% if config.audio.chapters %}checked{% endif %}>
+        Chapitrage navigable
+      </label>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2>Le contenu</h2>
+        <p class="section-sub">La longueur de l'épisode et la variété des sources.</p>
       </div>
-    </label>
-    <label>Débit intro/outro
-      <input name="intro_rate" value="{{ show.intro_rate }}" placeholder="-8%">
-    </label>
-    <label>Débit brèves
-      <input name="brief_rate" value="{{ show.brief_rate }}" placeholder="+4%">
-    </label>
-  </div>
+    </div>
+    <div class="grid2">
+      <label>Titres au flash
+        <input name="num_headlines" type="number" min="1" max="30" value="{{ show.num_headlines }}">
+      </label>
+      <label>Brèves détaillées
+        <input name="num_briefs" type="number" min="0" max="10" value="{{ show.num_briefs }}">
+      </label>
+      <label>Longueur d'une brève <span class="hint">(signes)</span>
+        <input name="max_brief_chars" type="number" min="100" max="2000" step="50" value="{{ show.max_brief_chars }}">
+      </label>
+      <label>Articles max par source
+        <input name="max_per_source" type="number" min="1" max="10" value="{{ show.max_per_source }}">
+      </label>
+    </div>
+  </section>
 
-  <h2>Contenu de l'épisode</h2>
-  <div class="grid2">
-    <label>Nombre de titres (flash)
-      <input name="num_headlines" type="number" min="1" max="30" value="{{ show.num_headlines }}">
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2>L'écriture</h2>
+        <p class="section-sub">Rédaction par IA via OpenRouter. Si elle est indisponible,
+          l'épisode part quand même avec le script déterministe.</p>
+      </div>
+    </div>
+    <div class="grid2">
+      <label>Modèle
+        <input name="ai_model" value="{{ config.ai.model }}" placeholder="google/gemini-3.6-flash">
+      </label>
+      <label class="checkbox" style="align-self:end;margin-bottom:16px">
+        <input type="checkbox" name="ai_enabled" {% if config.ai.enabled %}checked{% endif %}>
+        Script rédigé par l'IA
+      </label>
+    </div>
+    <label>Persona
+      <textarea name="ai_persona" rows="2" maxlength="400">{{ config.ai.persona }}</textarea>
+      <small>Qui parle : « chroniqueur matinal, vif et chaleureux », « analyste posé »…</small>
     </label>
-    <label>Nombre de brèves détaillées
-      <input name="num_briefs" type="number" min="0" max="10" value="{{ show.num_briefs }}">
-    </label>
-    <label>Résumé max (caractères)
-      <input name="max_brief_chars" type="number" min="100" max="2000" step="50" value="{{ show.max_brief_chars }}">
-    </label>
-    <label>Max d'articles par source
-      <input name="max_per_source" type="number" min="1" max="10" value="{{ show.max_per_source }}">
-    </label>
-  </div>
-
-  <h2>Rédaction IA (OpenRouter)</h2>
-  <div class="grid2">
-    <label>Modèle
-      <input name="ai_model" value="{{ config.ai.model }}" placeholder="google/gemini-3.6-flash">
-    </label>
-    <label class="checkbox" style="margin-top:26px">
-      <input type="checkbox" name="ai_enabled" {% if config.ai.enabled %}checked{% endif %}>
-      Script rédigé par l'IA <span class="hint">(repli auto sinon)</span>
-    </label>
-  </div>
-  <label>Persona / ton de l'émission
-    <textarea name="ai_persona" rows="2" maxlength="400">{{ config.ai.persona }}</textarea>
-  </label>
-  <label>Exemples de ton
-    <textarea name="ai_tone_examples" rows="6" placeholder="Colle un ou plusieurs extraits dont tu aimes le style — une chronique, un billet, ta propre écriture.
+    <label>Exemples de ton
+      <textarea name="ai_tone_examples" rows="7" placeholder="Colle un ou plusieurs extraits dont tu aimes le style — une chronique, un billet, ta propre écriture.
 Sépare les exemples par une ligne contenant ---">{{ config.ai.tone_examples | join('\n---\n') }}</textarea>
-    <small>Montrer un ton marche mieux que le décrire. Le style est imité,
-      jamais le contenu. 5 exemples max, 1 500 signes chacun.</small>
-  </label>
-  <label>Consigne système libre (avancé — vide = persona)
-    <textarea name="ai_system_prompt" rows="2" maxlength="1000">{{ config.ai.system_prompt or '' }}</textarea>
-  </label>
-
-  <h2>Audio</h2>
-  <label class="checkbox">
-    <input type="checkbox" name="jingle" {% if config.audio.jingle %}checked{% endif %}>
-    Jingle d'intro/outro et transitions
-  </label>
-  <label class="checkbox">
-    <input type="checkbox" name="chapters" {% if config.audio.chapters %}checked{% endif %}>
-    Chapitrage des épisodes (navigation dans le lecteur)
-  </label>
-
-  <h2>Podcast (global)</h2>
-  <div class="grid2">
-    <label>Auteur
-      <input name="author" value="{{ config.author }}" maxlength="60">
+      <small>Montrer un ton fonctionne bien mieux que le décrire. Le style est imité,
+        jamais le contenu. 5 exemples de 1 500 signes maximum.</small>
     </label>
-    <label>Email (contact flux iTunes)
-      <input name="email" type="email" value="{{ config.email }}">
+    <label>Consigne système libre <span class="hint">(avancé — remplace le persona)</span>
+      <textarea name="ai_system_prompt" rows="2" maxlength="1000">{{ config.ai.system_prompt or '' }}</textarea>
     </label>
-  </div>
-  <label class="checkbox">
-    <input type="checkbox" name="skip_if_empty" {% if config.skip_if_empty %}checked{% endif %}>
-    Pas d'épisode s'il n'y a aucun nouvel article
-  </label>
-  <label>Épisodes conservés en ligne (0 = tous)
-    <input name="keep_episodes" type="number" min="0" max="1000"
-           value="{{ config.publishing.keep_episodes }}">
-    <small>Au-delà, les plus anciens sortent du flux et du site — ~2 Mo chacun,
-      pour une limite GitHub Pages de 1 Go.</small>
-  </label>
+  </section>
 
-  <div class="actions">
-    <button type="submit" class="btn primary">💾 Enregistrer</button>
-    <button type="button" id="btn-delete-show" class="btn danger">🗑 Supprimer cette émission</button>
-  </div>
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2>Le podcast</h2>
+        <p class="section-sub">Commun à toutes tes émissions.</p>
+      </div>
+    </div>
+    <div class="grid2">
+      <label>Auteur
+        <input name="author" value="{{ config.author }}" maxlength="60">
+      </label>
+      <label>Email <span class="hint">(contact du flux iTunes)</span>
+        <input name="email" type="email" value="{{ config.email }}">
+      </label>
+    </div>
+    <label class="checkbox">
+      <input type="checkbox" name="skip_if_empty" {% if config.skip_if_empty %}checked{% endif %}>
+      Pas d'épisode s'il n'y a aucun nouvel article
+    </label>
+    <label style="margin-top:16px">Épisodes conservés en ligne
+      <input name="keep_episodes" type="number" min="0" max="1000" value="{{ config.publishing.keep_episodes }}">
+      <small>Au-delà, les plus anciens sortent du flux et du site. 0 pour tout garder —
+        compte ~2 Mo par épisode, pour une limite GitHub Pages de 1 Go.</small>
+    </label>
+
+    <div class="actions">
+      <button type="submit" class="btn primary big">Enregistrer</button>
+      <span class="grow"></span>
+      <button type="button" id="btn-delete-show" class="btn danger">Supprimer cette émission</button>
+    </div>
+  </section>
 </form>
 {% endblock %}

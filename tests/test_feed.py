@@ -16,6 +16,23 @@ from app.sources import FeedItem
 BASE = "https://me.github.io/myop/"
 
 
+def test_feed_lists_the_newest_episode_first():
+    """Convention RSS : l'épisode le plus récent ouvre le flux."""
+    from app.config import Config, Show
+    from app.feed import build_feed
+
+    config = Config(shows=[Show(id="matin", title="Le Matin")])
+    episodes = [
+        {"id": "2026-08-15", "title": "Récent", "pubDate": "2026-08-15T07:30:00+02:00",
+         "duration": 300, "size": 1},
+        {"id": "2026-08-13", "title": "Ancien", "pubDate": "2026-08-13T07:30:00+02:00",
+         "duration": 300, "size": 1},
+    ]
+    xml = build_feed(config, config.show(), episodes, "https://me.github.io/myop/")
+
+    assert xml.index("Récent") < xml.index("Ancien")
+
+
 def _write_episode(dist: Path, show_id: str, ep_id: str, published: datetime, size: int = 12345) -> dict:
     meta = {
         "id": ep_id,

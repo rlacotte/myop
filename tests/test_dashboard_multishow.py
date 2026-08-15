@@ -148,8 +148,35 @@ def test_tone_examples_round_trip_through_the_form(client, two_shows):
 
 def test_settings_page_renders_current_tone_examples(client, two_shows):
     client.put("/api/settings", json={"ai_tone_examples": "Un extrait\n---\nDeux"})
-    page = client.get("/").text
+    page = client.get("/reglages").text
     assert "Un extrait\n---\nDeux" in page
+
+
+def test_every_page_renders_for_each_show(client):
+    """Les quatre écrans répondent, pour l'émission demandée."""
+    for path in ("/", "/episodes", "/sources", "/reglages"):
+        for show in ("matin", "soir"):
+            page = client.get(path, params={"show": show})
+            assert page.status_code == 200, path
+            assert 'class="app"' in page.text  # ossature commune
+
+
+def test_home_overview_summarises_the_show(client):
+    data = client.get("/api/overview?show=soir").json()
+
+    assert data["show"]["id"] == "soir" and data["show"]["title"] == "Le Soir"
+    assert data["sources"] == 1
+    assert data["episodes"] == 0 and data["latest"] is None
+    assert data["has_draft"] is False and data["running"] is False
+    assert data["feed_url"].endswith("podcast-soir.xml")
+
+
+def test_home_overview_reports_a_pending_draft(client):
+    client.put("/api/script/draft",
+               json={"show_id": "soir", "segments": [{"kind": "intro", "text": "Bonsoir."}]})
+
+    assert client.get("/api/overview?show=soir").json()["has_draft"] is True
+    assert client.get("/api/overview?show=matin").json()["has_draft"] is False
 
 
 def test_draft_survives_a_reload_and_is_per_show(client, tmp_path):

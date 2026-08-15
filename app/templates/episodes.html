@@ -2,79 +2,82 @@
 {% block title %}Épisodes{% endblock %}
 {% block page %}episodes{% endblock %}
 {% block content %}
-<h1>Épisodes — <span id="show-title">{{ show.title }}</span></h1>
+<header class="page-head">
+  <p class="eyebrow">{{ show.title }}</p>
+  <h1>Épisodes &amp; script</h1>
+  <p class="sub">Prépare le script, retouche-le, synthétise — puis publie.</p>
+</header>
 
-<section class="card" id="subscribe-card">
-  <h2>📲 Abonnement</h2>
-  {% if config.feed_url(show) %}
-    <div class="row">
-      <input id="feed-url" readonly value="{{ config.feed_url(show) }}" class="grow">
-      <a class="btn" href="{{ config.pages_base }}" target="_blank">Page publique</a>
+<!-- Éditeur d'abord : c'est le travail en cours, il prime sur les archives. -->
+<section class="card" id="draft-card" hidden>
+  <div class="card-head">
+    <div>
+      <h2>Script en cours <span class="hint" id="draft-meta"></span></h2>
+      <p class="section-sub">Retouche le texte, réordonne, ajoute ou supprime des segments.
+        Le brouillon est enregistré : tu peux fermer la page.</p>
     </div>
-    <div class="qr-wrap"><img id="qr" alt="QR code du flux" hidden></div>
-    <p class="hint">Scanne le QR code ou ouvre la page publique : abonnement en un clic
-    (Apple Podcasts, Overcast, Pocket Casts) et lecteur web.</p>
-  {% else %}
-    <p class="hint">Flux pas encore publié — lance <code>myop setup</code> dans le terminal.</p>
-  {% endif %}
+    <button id="btn-draft-close" class="btn small ghost">Replier</button>
+  </div>
+  <label>Titre de l'épisode
+    <input id="draft-title" maxlength="140">
+  </label>
+  <div id="draft-segments"></div>
+  <div class="row wrap">
+    <button id="btn-seg-add" class="btn small">Ajouter un segment</button>
+    <button id="btn-draft-save" class="btn small ghost">Enregistrer le brouillon</button>
+    <button id="btn-draft-discard" class="btn small ghost">Abandonner</button>
+  </div>
+  <div class="actions">
+    <button id="btn-render" class="btn primary big">Synthétiser cet épisode</button>
+  </div>
 </section>
 
 <section class="card">
-  <h2>🎙️ Génération</h2>
-  <div class="row wrap">
-    <button id="btn-generate" class="btn primary">⚡ Générer maintenant</button>
-    <button id="btn-draft" class="btn">📝 Préparer le script</button>
-    <button id="btn-publish-config" class="btn">📤 Publier la config</button>
-    <button id="btn-publish-dist" class="btn">📦 Publier les épisodes</button>
-    <button id="btn-trigger" class="btn">🚀 Déclencher l'action GitHub</button>
-    <button id="btn-sync" class="btn ghost">🔄 Rafraîchir depuis GitHub</button>
+  <div class="card-head">
+    <div>
+      <h2>Produire</h2>
+      <p class="section-sub">Générer directement, ou passer par l'éditeur de script.</p>
+    </div>
   </div>
-  <div class="row wrap" style="margin-top:12px">
-    <label style="margin:0">Rattrapage (date)
-      <div class="row">
-        <input id="gen-date" type="date" class="grow" style="width:170px">
-        <button id="btn-generate-date" class="btn small">Régénérer cette date</button>
+  <div class="row wrap">
+    <button id="btn-generate" class="btn primary">Générer maintenant</button>
+    <button id="btn-draft" class="btn">Préparer le script</button>
+    <button id="btn-sync" class="btn ghost">Rafraîchir depuis GitHub</button>
+  </div>
+  <div class="row wrap" style="margin-top:16px">
+    <label style="margin:0">Rattrapage d'une date passée
+      <div class="row" style="margin-top:6px">
+        <input id="gen-date" type="date" style="width:170px">
+        <button id="btn-generate-date" class="btn small">Régénérer</button>
       </div>
     </label>
   </div>
   <div id="gen-status" class="status" hidden></div>
 </section>
 
-<section class="card" id="draft-card" hidden>
-  <h2>📝 Script de l'épisode <span class="hint" id="draft-meta"></span></h2>
-  <p class="hint">Retouche le texte, réordonne, ajoute ou supprime des segments,
-    puis « Synthétiser ». Le brouillon est enregistré : tu peux fermer la page.</p>
-  <label>Titre de l'épisode
-    <input id="draft-title" maxlength="140">
-  </label>
-  <div id="draft-segments"></div>
-  <div class="row wrap">
-    <button id="btn-seg-add" class="btn small">＋ Ajouter un segment</button>
-    <button id="btn-draft-save" class="btn small ghost">💾 Enregistrer le brouillon</button>
-  </div>
-  <div class="row wrap">
-    <button id="btn-render" class="btn primary">🎧 Synthétiser cet épisode</button>
-    <button id="btn-draft-close" class="btn ghost">Fermer</button>
-    <button id="btn-draft-discard" class="btn ghost">🗑 Abandonner le brouillon</button>
-  </div>
-</section>
-
 <section class="card">
-  <h2>📖 Liste de lecture <span class="hint">(articles lus dans le prochain épisode)</span></h2>
+  <div class="card-head">
+    <div>
+      <h2>Liste de lecture</h2>
+      <p class="section-sub">Colle l'URL d'un article : il sera lu dans le prochain épisode.</p>
+    </div>
+  </div>
   <form id="add-reading" class="row">
-    <input name="url" placeholder="https://… (URL d'un article à écouter)" required class="grow">
-    <button type="submit" class="btn primary">＋ Ajouter</button>
+    <input name="url" placeholder="https://…" required class="grow">
+    <button type="submit" class="btn primary">Ajouter</button>
   </form>
   <div id="reading-list"></div>
 </section>
 
 <section class="card">
-  <h2>👎/👍 Boucle de goût <span class="hint">(pondère sources et sujets pour les prochains épisodes)</span></h2>
-  <div id="feedback-box" class="hint">Vote sur les titres des derniers épisodes générés ci-dessous.</div>
-</section>
-
-<section class="card">
-  <h2>🎧 Épisodes</h2>
+  <div class="card-head">
+    <div>
+      <h2>Archives</h2>
+      <p class="section-sub">Vote sur les titres : les sources appréciées remontent,
+        les sujets rejetés s'effacent.</p>
+    </div>
+  </div>
+  <div id="feedback-box" hidden></div>
   <div id="episodes-list"><p class="loading">Chargement…</p></div>
 </section>
 {% endblock %}

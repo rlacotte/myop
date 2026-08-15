@@ -6,25 +6,38 @@
   <title>{% block title %}MYOP{% endblock %} · My Own Podcast</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body data-page="{% block page %}{% endblock %}">
-  <header class="topbar">
-    <div class="brand">🎙️ <strong>MYOP</strong><span class="brand-sub">My Own Podcast</span></div>
-    <nav>
-      <a href="/" data-nav="/">Réglages</a>
-      <a href="/sources" data-nav="/sources">Sources</a>
-      <a href="/episodes" data-nav="/episodes">Épisodes &amp; script</a>
-    </nav>
-  </header>
-  <div class="showbar">
-    <div class="wrap">
-      <span class="showbar-label">🎙 Émission :</span>
-      <div id="show-tabs" class="show-tabs"></div>
-      <button id="show-add" class="btn small ghost" title="Nouvelle émission">＋ nouvelle</button>
+<body class="app" data-page="{% block page %}{% endblock %}">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">MYOP</span>
+      <span class="brand-sub">ta radio</span>
     </div>
-  </div>
-  <main>
+
+    <div>
+      <div class="side-label">Émissions</div>
+      <div id="show-tabs" class="show-tabs"></div>
+      <button id="show-add" class="btn ghost small" style="margin-top:6px">Nouvelle émission</button>
+    </div>
+
+    <div>
+      <div class="side-label">{{ show.title }}</div>
+      <nav class="side-nav">
+        <a href="/" data-nav="/">Tableau de bord</a>
+        <a href="/episodes" data-nav="/episodes">Épisodes &amp; script</a>
+        <a href="/sources" data-nav="/sources">Sources</a>
+        <a href="/reglages" data-nav="/reglages">Réglages</a>
+      </nav>
+    </div>
+
+    <div class="side-foot">
+      <a href="https://github.com/rlacotte/myop" target="_blank">My Own Podcast</a>
+    </div>
+  </aside>
+
+  <main class="content">
     {% block content %}{% endblock %}
   </main>
+
   <div id="toast" role="status" hidden></div>
   <script>
     window.MYOP_SHOW = "{{ show.id }}";

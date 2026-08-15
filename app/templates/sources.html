@@ -2,36 +2,51 @@
 {% block title %}Sources{% endblock %}
 {% block page %}sources{% endblock %}
 {% block content %}
-<h1>Sources — <span id="show-title">{{ show.title }}</span></h1>
+<header class="page-head">
+  <p class="eyebrow">{{ show.title }}</p>
+  <h1>Sources</h1>
+  <p class="sub">Ce que MYOP lit chaque matin pour écrire ton épisode.
+    <span id="active-count" class="pill cool"></span>
+  </p>
+</header>
 
 <section class="card">
-  <div class="row wrap library-bar">
-    <input id="library-search" class="grow" type="search"
-           placeholder="🔍 Rechercher une source ou un domaine…">
-    <span id="active-count" class="badge-big"></span>
+  <div class="card-head">
+    <div>
+      <h2>Bibliothèque</h2>
+      <p class="section-sub">Des flux vérifiés, classés par sujet. Active ce qui t'intéresse.</p>
+    </div>
+    <div class="row wrap">
+      <button id="btn-health" class="btn small">Vérifier la santé</button>
+      <a id="btn-opml-export" class="btn small ghost" download>Export OPML</a>
+      <button id="btn-opml-import" class="btn small ghost">Import OPML</button>
+      <input type="file" id="opml-file" accept=".opml,.xml" hidden>
+    </div>
   </div>
-  <div class="row wrap">
-    <button id="btn-health" class="btn small">🩺 Vérifier la santé des sources</button>
-    <a id="btn-opml-export" class="btn small ghost" download>⬇ Export OPML</a>
-    <button id="btn-opml-import" class="btn small ghost">⬆ Import OPML</button>
-    <input type="file" id="opml-file" accept=".opml,.xml" hidden>
+  <div class="library-bar">
+    <input id="library-search" type="search" placeholder="Rechercher une source ou un domaine…">
   </div>
   <div id="health-box" class="status" hidden></div>
   <div id="library-list" class="library"><p class="loading">Chargement de la bibliothèque…</p></div>
 </section>
 
 <section class="card">
-  <h2>➕ Mes sources personnalisées</h2>
-  <form id="add-source" class="row">
-    <input name="name" placeholder="Nom (ex : Le Monde — Cyclisme)" required maxlength="60">
+  <div class="card-head">
+    <div>
+      <h2>Mes flux</h2>
+      <p class="section-sub">Ajoute n'importe quel flux RSS ou Atom.</p>
+    </div>
+  </div>
+  <form id="add-source" class="row wrap">
+    <input name="name" placeholder="Nom (ex : Le Monde — Cyclisme)" required maxlength="60" style="width:230px">
     <input name="url" placeholder="https://…/feed.xml" required class="grow">
     <button type="submit" class="btn primary">Ajouter</button>
   </form>
   <div id="custom-list"></div>
 </section>
 
-<div id="preview-box" class="card" hidden>
-  <h2 id="preview-title"></h2>
+<section id="preview-box" class="card" hidden>
+  <div class="card-head"><div><h2 id="preview-title"></h2></div></div>
   <ul id="preview-items"></ul>
-</div>
+</section>
 {% endblock %}

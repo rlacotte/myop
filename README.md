@@ -62,7 +62,8 @@ Toi ◄── Apple Podcasts / Overcast / page web ◄── flux RSS (GitHub Pa
 ### 🌍 Diffusion
 - **Page publique** : abonnement **one-tap** (Apple Podcasts, Overcast, Pocket
   Casts), QR code et **lecteur web** pour écouter sans s'abonner
-- **Un flux RSS par émission**, conformes iTunes (enclosure, guid, pochette auto)
+- **Un flux RSS par émission**, conformes iTunes (enclosure, guid, pochette auto
+  générée aux couleurs de MYOP — supprime `dist/cover*.png` pour la refaire)
 - **GitHub Actions** : la planification est générée depuis tes heures de
   livraison (deux crons par heure, été et hiver — un épisode part à l'heure
   juste toute l'année, sans réveiller le runner 24 fois par jour)
@@ -107,11 +108,14 @@ boutons one-tap, QR code à scanner depuis le téléphone, ou lecteur web.
 make serve   # → http://localhost:8484
 ```
 
-| Onglet | Actions |
+Barre latérale : tu choisis l'émission en haut, tout l'écran suit.
+
+| Écran | Ce qu'on y fait |
 |---|---|
-| **Réglages** | par émission : titre, heure, voix (+ extrait écoutable, 2ᵉ voix, météo, éphéméride, volume de titres) · globaux : persona IA, **exemples de ton**, jingle, chapitrage, rétention des épisodes |
-| **Sources** | bibliothèque 12 catégories (switch par flux, « tout activer » par catégorie, recherche), santé en direct, OPML, flux perso |
-| **Épisodes & script** | générer, **préparer/éditer le script** (segments réordonnables, brouillon persistant) puis synthétiser, liste de lecture, votes 👍/👎, rattrapage par date, publication GitHub, QR code |
+| **Tableau de bord** | l'état de l'émission et l'action du jour : générer ou préparer le script, sources/épisodes/dernière parution en un coup d'œil, abonnement (QR + URL du flux), publication GitHub |
+| **Épisodes & script** | éditeur de script (segments réordonnables, brouillon persistant) puis synthèse, liste de lecture, rattrapage par date, archives et votes |
+| **Sources** | bibliothèque 12 catégories (activation par flux ou par catégorie, recherche, test en direct), santé des sources, OPML, flux perso |
+| **Réglages** | l'émission, la voix, le contenu, l'écriture (persona et **exemples de ton**), le podcast (auteur, rétention) |
 
 ## 🧰 Commandes
 

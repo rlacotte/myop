@@ -88,6 +88,14 @@ def _current_show(request: Request | None = None, show_id: str | None = None) ->
 # ------------------------------------------------------------------ pages ---
 
 @app.get("/")
+def page_home(request: Request):
+    config = load_config()
+    return TEMPLATES.TemplateResponse(
+        request, "home.html", {"config": config, "show": _current_show(request)}
+    )
+
+
+@app.get("/reglages")
 def page_settings(request: Request):
     config = load_config()
     return TEMPLATES.TemplateResponse(
@@ -112,6 +120,30 @@ def page_episodes(request: Request):
 
 
 # ------------------------------------------------------------------ état ----
+
+@app.get("/api/overview")
+def get_overview(show_id: ShowParam = None):
+    """Résumé d'une émission pour le tableau de bord (un seul aller-retour)."""
+    config = load_config()
+    show = _show_or_404(show_id)
+    episodes = _local_episodes(show)
+    draft = _draft_path(show).exists()
+    running = _jobs.get(_job_key(show), {}).get("running", False)
+    return {
+        "show": {
+            "id": show.id,
+            "title": show.title,
+            "enabled": show.enabled,
+            "delivery_hour": show.delivery_hour,
+        },
+        "sources": len(show.sources),
+        "episodes": len(episodes),
+        "latest": episodes[0] if episodes else None,
+        "has_draft": draft,
+        "running": running,
+        "feed_url": config.feed_url(show),
+    }
+
 
 @app.get("/api/state")
 def get_state():
