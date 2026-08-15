@@ -12,7 +12,15 @@ from app import generate
 from app.config import Config, Show, Source
 from app.feedback import Feedback, apply_feedback, load_feedback, record_vote, save_feedback
 from app.generate import generate_episode, load_seen, save_seen
-from app.reading import ReadingItem, extract_article, load_queue, save_queue, take_for_episode
+from app.reading import (
+    ReadingItem,
+    extract_article,
+    load_queue,
+    peek_for_episode,
+    remove_urls,
+    save_queue,
+    take_for_episode,
+)
 from app.sources import FeedItem, FetchResult
 from app.tts import SynthResult
 from app.weather import Weather, fetch_weather, weather_text
@@ -67,9 +75,23 @@ def test_reading_queue_roundtrip_and_consume(tmp_path):
     save_queue(tmp_path, queue)
     assert len(load_queue(tmp_path)) == 1
 
+    # L'aperçu ne consomme pas (préparation de brouillon)
+    assert len(peek_for_episode(tmp_path, 3)) == 1
+    assert len(load_queue(tmp_path)) == 1
+
     due = take_for_episode(tmp_path, max_items=3)
     assert [item.title for item in due] == ["A"]
     assert load_queue(tmp_path) == []  # consommé
+
+
+def test_remove_urls_after_episode(tmp_path):
+    queue = [
+        ReadingItem(url="https://a.example/1", title="A", text="x"),
+        ReadingItem(url="https://b.example/2", title="B", text="y"),
+    ]
+    save_queue(tmp_path, queue)
+    remove_urls(tmp_path, ["https://a.example/1"])
+    assert [item.title for item in load_queue(tmp_path)] == ["B"]
 
 
 # ------------------------------------------------------------- boucle de goût --

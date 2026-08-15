@@ -106,3 +106,14 @@ def take_for_episode(dist_dir: Path, max_items: int) -> list[ReadingItem]:
     due, rest = queue[:max_items], queue[max_items:]
     save_queue(dist_dir, rest)
     return due
+
+
+def peek_for_episode(dist_dir: Path, max_items: int) -> list[ReadingItem]:
+    """Aperçu des articles à lire, SANS les consommer (préparation de brouillon)."""
+    return load_queue(dist_dir)[:max_items]
+
+
+def remove_urls(dist_dir: Path, urls: list[str]) -> None:
+    """Retire des articles de la file (après lecture effective dans un épisode)."""
+    queue = [item for item in load_queue(dist_dir) if item.url not in set(urls)]
+    save_queue(dist_dir, queue)

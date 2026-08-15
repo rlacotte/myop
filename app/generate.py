@@ -171,7 +171,7 @@ async def _collect_day(
     weather_line = weather_text(weather) if weather else ""
     ephemeris_line = ephemeris_text(now) if show.ephemeris else ""
     reading_items = (
-        reading_mod.take_for_episode(dist_dir, config.reading.max_items)
+        reading_mod.peek_for_episode(dist_dir, config.reading.max_items)
         if config.reading.enabled
         else []
     )
@@ -351,6 +351,11 @@ async def generate_episode(
 
     # Historisation : tout ce qui a été vu aujourd'hui ne reviendra pas demain
     save_seen(dist_dir, show, load_seen(dist_dir, show) | set(fetched.all_keys))
+    # Les articles lus dans cet épisode quittent la file d'attente
+    if reading_items:
+        reading_mod.remove_urls(
+            dist_dir, [getattr(item, "url", "") for item in reading_items]
+        )
 
     _publish_statics(config, dist_dir)
 

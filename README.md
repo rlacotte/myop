@@ -1,68 +1,92 @@
 # 🎙️ MYOP — My Own Podcast
 
-**Ton propre podcast quotidien, livré chaque matin sur ton lecteur de podcast.**
+**Ta radio personnelle, générée chaque jour et livrée automatiquement sur ton lecteur de podcast.**
 
-MYOP agrège les flux RSS que tu choisis, rédige un briefing, le transforme en audio
-(voix de synthèse Edge TTS, gratuit) et le publie automatiquement via GitHub Pages.
-Tu t'abonnes **une seule fois** dans Apple Podcasts, Overcast ou Pocket Casts —
-et tu reçois un nouvel épisode chaque matin.
+MYOP collecte les flux RSS que tu choisis, rédige un briefing (par IA ou de façon
+déterministe), le fait lire par une voix de synthèse, et publie l'épisode sur un
+flux RSS conforme iTunes. Tu t'abonnes **une seule fois** dans Apple Podcasts,
+Overcast ou Pocket Casts — et tu reçois tes émissions chaque jour, à l'heure
+que tu as choisie.
 
 ```
-Flux RSS (Le Monde, franceinfo…) ──► script de briefing ──► voix Edge TTS ──► MP3
-                                                                        │
-Toi ◄── Apple Podcasts / Overcast ◄── flux RSS (GitHub Pages) ◄── GitHub Actions (cron quotidien)
+Tes flux RSS ──► sélection intelligente ──► script (IA) ──► voix + jingle ──► MP3 chapitré
+                                                                                │
+Toi ◄── Apple Podcasts / Overcast / page web ◄── flux RSS (GitHub Pages) ◄── GitHub Actions (horaire)
 ```
 
-## ✨ Ce que fait l'app
+## ✨ Tout ce que MYOP sait faire
 
-- **Collecte** tes flux RSS (24 dernières heures, élargi à 48 h si besoin), dédoublonne
-  les articles et répartit les sources (max. par source configurable)
-- **Rédige** le script : soit par **IA** (OpenRouter — ex. Gemini), soit par assemblage
-  déterministe : intro datée → flash des titres → brèves détaillées → outro
-- **Synthétise** la voix (Edge TTS — voix neuronales Microsoft, gratuit, sans clé API)
-- **Publie** le MP3 + le flux RSS conforme iTunes sur GitHub Pages (URL HTTPS publique)
-- **Génère chaque jour** via GitHub Actions (heure de livraison configurable)
-- **Dashboard local** pour tout régler : sources, voix (avec extrait écoutable),
-  nombre de titres/brèves, heure de livraison, épisodes, QR code d'abonnement
+### 🎙️ Émissions
+- **Multi-émissions** : un briefing le matin, un magazine tech le soir, un flash
+  sport le week-end… chacune avec ses sources, sa voix, son heure et **son flux RSS**
+- **Segments riches** : météo du jour (Open-Meteo, gratuit) et éphéméride
+  (jours fériés, pleine lune) intégrés au script
+- **Liste de lecture** : colle l'URL d'un article, MYOP l'extrait et le fait lire
+  dans le prochain épisode — écoute ta pile d'articles
+- **Dialogue à deux voix** : ajoute une 2ᵉ voix, l'IA écrit un duo radio
+- **Boucle de goût** : vote 👍/👎 sur les brèves — les sources appréciées
+  remontent, les sujets rejetés disparaissent
+
+### ✍️ Rédaction
+- **Script par IA** (OpenRouter — Gemini par défaut) avec **persona éditable** :
+  ton radio, humour, personnage…
+- **Traduction automatique** : sources en anglais, espagnol… résumées en français
+- **Éditeur de script** : prépare l'épisode, relis et retouche le texte
+  (ou réécris-le) avant la synthèse vocale
+- **Repli déterministe garanti** : si l'IA est indisponible, l'épisode part quand même
+
+### 🎧 Audio
+- **Voix Edge TTS** (gratuit, ~8 voix françaises) ou **ElevenLabs** (premium)
+- **Jingle d'intro/outro et transitions** — 100 % synthétisés, aucun fichier à fournir
+- **Chapitrage ID3** : Intro · Titres · Météo · Brève 1… navigables dans le lecteur
+
+### 📡 Sources
+- **Bibliothèque intégrée** : 44 flux vérifiés en 12 catégories (généralistes,
+  politique, international, éco, tech, sciences, culture, sport, environnement,
+  santé, crypto, presse internationale traduite)
+- **Activation par flux ou par catégorie** en un clic, recherche, test en direct
+- **Santé des sources** : diagnostic en parallèle (items, fraîcheur, latence)
+- **Import/export OPML** depuis tes lecteurs RSS existants
+- **Sélection intelligente** : fraîcheur, diversité par source, dédoublonnage
+  par URL **et par similarité de titres** (même info ≠ sources multiples)
+
+### 🌍 Diffusion
+- **Page publique** : abonnement **one-tap** (Apple Podcasts, Overcast, Pocket
+  Casts), QR code et **lecteur web** pour écouter sans s'abonner
+- **Un flux RSS par émission**, conformes iTunes (enclosure, guid, pochette auto)
+- **GitHub Actions horaire** : chaque émission part à son heure, heure de Paris
+- **Rattrapage** : régénère n'importe quelle date passée
+- Statistiques optionnelles (GoatCounter, respectueux de la vie privée)
 
 ## 🚀 Démarrage rapide
 
 ### Prérequis
 
-- Python **3.11+** : `brew install python`
-- **ffmpeg** : `brew install ffmpeg`
-- **GitHub CLI** connecté : `brew install gh && gh auth login`
+- Python **3.11+**, **ffmpeg**, **GitHub CLI** connecté :
+  ```bash
+  brew install python ffmpeg gh && gh auth login
+  ```
 - [uv](https://docs.astral.sh/uv/) : `brew install uv`
 
-### Installation + première livraison
+### Installation + mise en ligne (une commande)
 
 ```bash
 make setup
 ```
 
-C'est tout. `make setup` :
+`myop setup` crée le repo GitHub, génère et publie le premier épisode, active
+GitHub Pages et affiche l'URL de ton flux. Bilan de santé à tout moment :
 
-1. installe les dépendances,
-2. crée ton repo GitHub (nom `myop` par défaut — `uv run myop setup --repo mon-nom` pour changer),
-3. génère le **premier épisode** et le publie,
-4. active GitHub Pages et programme la génération quotidienne,
-5. affiche **l'URL de ton flux RSS**.
+```bash
+uv run myop doctor   🩺 vérifie tout : outils, clé IA, repo, flux, sources
+```
 
-### S'abonner dans ton lecteur
+### S'abonner
 
-Copie l'URL du flux (ex. `https://ton-user.github.io/myop/podcast.xml`) :
+Ouvre la page publique de ton podcast (ex. `https://ton-user.github.io/myop/`) :
+boutons one-tap, QR code à scanner depuis le téléphone, ou lecteur web.
 
-| Lecteur | Comment s'abonner |
-|---|---|
-| **Apple Podcasts** (macOS) | Fichier → S'abonner au podcast… → coller l'URL |
-| **Apple Podcasts** (iOS) | scanne le QR code du dashboard, ou partage l'URL vers Podcasts |
-| **Overcast** | Ajouter par URL |
-| **Pocket Casts** | Ajouter un podcast → par URL RSS |
-
-Le QR code est disponible dans le dashboard (onglet Épisodes) et sur la page
-GitHub Pages du podcast.
-
-## 🎛 Dashboard local
+## 🎛 Le dashboard
 
 ```bash
 make serve   # → http://localhost:8484
@@ -70,108 +94,70 @@ make serve   # → http://localhost:8484
 
 | Onglet | Actions |
 |---|---|
-| **Réglages** | titre, description, voix (extrait écoutable), débit, IA (modèle), nombre de titres/brèves, heure de livraison |
-| **Sources** | **bibliothèque intégrée** : 36 flux vérifiés en 11 catégories (actus, tech, sciences, culture, sport, éco, crypto…) à activer d'un clic — par flux ou par catégorie entière — avec recherche et test en direct ; + ajout de flux personnalisés |
-| **Épisodes** | générer maintenant, écouter, publier sur GitHub, déclencher l'action manuellement, QR code |
-
-Après modification des réglages, clique sur **« Publier la config »** pour que la
-génération quotidienne (GitHub Actions) en tienne compte.
+| **Réglages** | par émission : titre, heure, voix (+ extrait écoutable, 2ᵉ voix, météo, éphéméride, volume de titres) · globaux : persona IA, jingle, chapitrage |
+| **Sources** | bibliothèque 12 catégories (switch par flux, « tout activer » par catégorie, recherche), santé en direct, OPML, flux perso |
+| **Épisodes & script** | générer, **préparer/éditer le script** puis synthétiser, liste de lecture, votes 👍/👎, rattrapage par date, publication GitHub, QR code |
 
 ## 🧰 Commandes
 
 ```bash
-uv run myop setup              # crée le repo, publie le 1er épisode, active Pages
-uv run myop serve              # dashboard local (port 8484)
-uv run myop generate           # génère l'épisode du jour
-uv run myop generate --publish # génère + publie sur GitHub Pages
-uv run myop publish            # publie dist/ sur GitHub Pages
-uv run myop trigger            # déclenche la génération distante (GitHub Actions)
-uv run myop voices             # liste les voix françaises disponibles
+uv run myop setup                # crée le repo, publie, active Pages
+uv run myop serve                # dashboard local (port 8484)
+uv run myop generate             # génère toutes les émissions maintenant
+uv run myop generate --show soir # une seule émission
+uv run myop generate --fresh     # ignore l'historique (régénère)
+uv run myop generate --date 2026-08-14   # rattrapage
+uv run myop publish              # publie dist/ sur GitHub Pages
+uv run myop trigger              # déclenche le workflow distant
+uv run myop voices               # voix françaises disponibles
+uv run myop doctor               # bilan santé complet
 ```
 
-## ⚙️ Comment ça marche
+## ⚙️ Architecture
 
-- `app/sources.py` — collecte RSS parallèle, filtrage 24 h/48 h, dédoublonnage,
-  historisation (`seen.json` sur la branche `gh-pages` pour ne jamais rediffuser)
-- `app/script.py` — rédaction déterministe du briefing (aucune IA requise)
-- `app/tts.py` — Edge TTS segment par segment + assemblage ffmpeg (pydub)
-- `app/feed.py` — flux RSS 2.0 avec tags iTunes (enclosure, guid stable, pochette)
-- `app/generate.py` — orchestration : épisode `dist/episodes/AAAA-MM-JJ.mp3` + métadonnées
-- `app/publish.py` — publication sur la branche `gh-pages` (accumule les épisodes,
-  ne supprime jamais), activation Pages via `gh`
-- `app/dashboard.py` — dashboard FastAPI
-- `.github/workflows/daily.yml` — cron quotidien (heure = `delivery_hour` de
-  `config.yaml`, converti Paris → UTC). Attention : GitHub interprète le cron en
-  UTC ; l'heure exacte peut varier d'une heure entre été/hiver.
-
-## 🔧 Personnalisation
-
-Tout est dans `config.yaml` (ou le dashboard). Quelques exemples :
-
-- **Sources** : bibliothèque intégrée dans le dashboard (onglet Sources) — case à
-  cocher par flux, « Tout activer » par catégorie, recherche, test en direct.
-  Pour ajouter un flux quelconque : section « Mes sources personnalisées ».
-  (Tous les flux de la bibliothèque ont été vérifiés en direct ; le bouton
-  « Tester » permet de re-vérifier à tout moment.)
-- **Voix** : `fr-FR-HenriNeural` (homme), `fr-FR-VivienneMultilingualNeural`,
-  voix québécoises, belges, suisses… (`uv run myop voices` pour la liste)
-- **Pochette** : remplace simplement `dist/cover.png` par ta propre image
-  1400×1400 et republie (une pochette est générée automatiquement sinon)
-- **Heure de livraison** : `delivery_hour: '08:00'` dans `config.yaml`,
-  puis `myop setup` ou le dashboard mettent à jour le cron
-- **Durée de l'épisode** : joue sur `num_headlines`, `num_briefs`, `max_brief_chars`
-
-## ✍️ Rédaction du script par IA (optionnelle)
-
-MYOP peut faire rédiger le briefing par un modèle de langage via **OpenRouter**
-(default : `google/gemini-3.6-flash`), pour un style radio plus naturel
-(transitions, reformulations, mise en relief).
-
-1. Copie ta clé OpenRouter dans `.openrouter_api_key` à la racine du repo
-   (fichier **non versionné** ; la variable `OPENROUTER_API_KEY` marche aussi) :
-   ```bash
-   echo "sk-or-v1-..." > .openrouter_api_key
-   ```
-2. Active dans `config.yaml` ou depuis le dashboard (onglet Réglages) :
-   ```yaml
-   ai:
-     enabled: true
-     model: google/gemini-3.6-flash   # n'importe quel modèle OpenRouter
-   ```
-3. Régénère : `uv run myop generate`
-
-Le modèle reçoit uniquement les articles collectés (avec leur source) et doit
-répondre en JSON structuré — aucune invention de faits autorisée (consigne
-système). **Repli garanti** : si la clé manque, si l'API tombe ou si la réponse
-est inutilisable, le script déterministe classique est utilisé et l'épisode
-part quand même (un avertissement s'affiche dans les logs).
-
-> **Note GitHub Actions** : la clé n'étant pas versionnée, la génération
-> quotidienne distante tourne en mode déterministe. Pour l'IA dans le cloud,
-> ajoute la clé comme secret du repo (`OPENROUTER_API_KEY`) et exporte-la
-> dans le workflow avant l'étape de génération.
+```
+app/
+├── config.py     # émissions (shows) + réglages partagés, migration auto v1→v2
+├── library.py    # bibliothèque de 44 flux vérifiés en 12 catégories
+├── sources.py    # collecte RSS : fenêtre 24/48 h, dédoublonnage URL + titres, diversité
+├── weather.py    # météo Open-Meteo (gratuit, sans clé)
+├── ephemeris.py  # jours fériés (computus), phases de lune — 100 % hors ligne
+├── reading.py    # liste de lecture : extraction d'articles, file d'attente
+├── feedback.py   # boucle de goût : scores de sources, mots-clés détestés
+├── script.py     # script déterministe (repli garanti)
+├── ai.py         # rédaction IA : persona, dialogue, contexte, traduction
+├── jingle.py     # jingle + transitions synthétisés (oscillateurs)
+├── tts.py        # voix Edge / ElevenLabs, assemblage, bornes de chapitres
+├── chapters.py   # chapitrage ID3 (CHAP/CTOC via mutagen)
+├── generate.py   # pipeline : collecte → script → audio → flux par émission
+├── feed.py       # flux RSS iTunes par show + page publique one-tap/lecteur
+├── publish.py    # gh-pages (accumulation), Pages, secrets
+└── dashboard.py  # interface locale complète
+```
 
 ## ❓FAQ
 
-**Le MP3 est hébergé où ?** Sur la branche `gh-pages` de ton repo (GitHub Pages).
-Les fichiers de moins de 100 Mo sont acceptés ; un épisode de 4 min ≈ 1,5 Mo,
-soit des années d'épisodes quotidiens sans souci. Pense à purger la branche si
-tu veux repartir de zéro (`git push origin --delete gh-pages`).
+**Combien ça coûte ?** Rien en configuration par défaut : Edge TTS gratuit,
+GitHub Actions + Pages gratuits (repo public). L'IA via OpenRouter coûte quelques
+centimes par épisode (Gemini Flash) ; ElevenLabs en option est payant.
 
-**Ça coûte quoi ?** Rien : Edge TTS est gratuit et GitHub Actions + Pages sont
-gratuits pour les repos publics. Pour un repo **privé**, les minutes Actions sont
-limitées (~2000 min/mois) et Pages nécessite GitHub Pro — l'épisode quotidien
-consomme ~5 min/mois.
+**Pourquoi l'IA dans le cloud alors que la clé est locale ?** Ajoute le secret
+`OPENROUTER_API_KEY` au repo GitHub — le workflow l'exporte déjà.
 
-**Je n'ai rien reçu ce matin.** Vérifie l'exécution du workflow :
-`gh run list --workflow daily.yml` puis `gh run watch`. Si les flux n'ont rien
-publié de nouveau, aucun épisode n'est créé (`skip_if_empty: true`).
+**Il n'y a pas eu d'épisode ce matin.** `gh run list --workflow daily.yml` puis
+`gh run watch`. Vérifie aussi la santé des sources (`myop doctor` ou dashboard).
 
-**Rediffusion d'un article ?** `seen.json` (sur gh-pages) mémorise tout ce qui a
-été lu ; supprime-le et republie pour réinitialiser.
+**Même info répétée ?** Le dédoublonnage par similarité de titres s'en charge ;
+les vrais doublons restent les articles proches publiés à quelques minutes d'écart.
+
+**Changer l'heure de livraison ?** Dashboard (Réglages) ou `delivery_hour` dans
+`config.yaml` — le workflow horaire s'en charge automatiquement à la prochaine heure.
+
+**Réinitialiser la mémoire des articles déjà diffusés ?** Supprime `seen-<show>.json`
+de la branche gh-pages, ou régénère avec `--fresh`.
 
 ## 🧪 Tests
 
 ```bash
-make test   # pytest : config, collecte RSS, script, TTS simulé, flux, cron, pipeline
+make test   # 67 tests : config, collecte, script, IA, audio, chapitres, flux, dashboard
 ```
