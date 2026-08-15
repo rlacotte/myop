@@ -176,7 +176,7 @@ async def test_generate_episode_end_to_end(tmp_path, monkeypatch):
     assert result.titles == ["Actu 0", "Actu 1", "Actu 2"]
 
     meta = json.loads((tmp_path / "episodes" / "matin" / "2026-08-14.json").read_text(encoding="utf-8"))
-    assert meta["title"] == "Briefing du vendredi 14 août"
+    assert meta["title"] == "Podcast Test — vendredi 14 août"
     seen = json.loads((tmp_path / "seen-matin.json").read_text(encoding="utf-8"))
     assert set(seen) == {"https://ex.com/0", "https://ex.com/1", "https://ex.com/2"}
     assert (tmp_path / "podcast.xml").exists()

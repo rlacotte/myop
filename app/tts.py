@@ -11,6 +11,7 @@ les bornes temporelles pour le chapitrage ID3.
 from __future__ import annotations
 
 import asyncio
+import shutil
 from pathlib import Path
 
 import edge_tts
@@ -24,6 +25,10 @@ from .script import Segment
 # Nombre de segments synthétisés en parallèle (restons courtois avec les services)
 _CONCURRENCY = 3
 _GAP_MS = 400  # pause entre segments
+# Les services de voix renvoient régulièrement des erreurs passagères (403, coupure
+# de flux). Sans reprise, un seul segment en échec fait sauter l'épisode du jour.
+_RETRIES = 3
+_RETRY_DELAYS = (2, 6)  # secondes avant les 2ᵉ et 3ᵉ tentatives
 
 ELEVENLABS_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
 
@@ -111,13 +116,41 @@ async def synthesize_segment(
         await _synth_edge(text, voice, rate, out)
 
 
+async def synthesize_with_retry(
+    config: Config, text: str, voice: str, rate: str, out: Path
+) -> list[str]:
+    """Synthétise un segment en réessayant les échecs passagers.
+
+    Retourne la liste des tentatives ratées (pour avertir l'utilisateur) ;
+    lève la dernière exception si toutes les tentatives échouent.
+    """
+    failures: list[str] = []
+    for attempt in range(_RETRIES):
+        try:
+            await synthesize_segment(config, text, voice, rate, out)
+            return failures
+        except Exception as exc:
+            failures.append(f"{exc.__class__.__name__}: {exc}")
+            if attempt == _RETRIES - 1:
+                raise
+            await asyncio.sleep(_RETRY_DELAYS[min(attempt, len(_RETRY_DELAYS) - 1)])
+    return failures
+
+
 class SynthResult:
     """Résultat d'assemblage : fichier, durée, chapitres (bornes en ms)."""
 
-    def __init__(self, path: Path, duration_seconds: int, chapters: list[dict]):
+    def __init__(
+        self,
+        path: Path,
+        duration_seconds: int,
+        chapters: list[dict],
+        warnings: list[str] | None = None,
+    ):
         self.path = path
         self.duration_seconds = duration_seconds
         self.chapters = chapters
+        self.warnings = warnings or []  # tentatives de synthèse rejouées
 
 
 def _segment_voices(segments: list[Segment], show: Show) -> list[str]:
@@ -155,12 +188,16 @@ async def synthesize(
     semaphore = asyncio.Semaphore(_CONCURRENCY)
     voices = _segment_voices(segments, show)
 
+    retries: list[str] = []
+
     async def _one(index: int) -> Path:
         part = tmp_dir / f"{index:03d}.mp3"
         async with semaphore:
-            await synthesize_segment(
+            failures = await synthesize_with_retry(
                 config, segments[index].text, voices[index], segments[index].rate, part
             )
+        for failure in failures:
+            retries.append(f"segment {index + 1} rejoué après {failure}")
         return part
 
     parts = await asyncio.gather(*[_one(i) for i in range(len(segments))])
@@ -194,12 +231,9 @@ async def synthesize(
 
     audio.export(out_path, format="mp3", bitrate="48k")
 
-    for part in parts:
-        part.unlink(missing_ok=True)
-    if tmp_dir.exists():
-        tmp_dir.rmdir()
+    shutil.rmtree(tmp_dir, ignore_errors=True)  # rmdir échouerait sur un résidu
 
-    return SynthResult(out_path, len(audio) // 1000, chapters)
+    return SynthResult(out_path, len(audio) // 1000, chapters, retries)
 
 
 async def voice_preview(voice: str, out_path: Path, config: Config | None = None) -> Path:

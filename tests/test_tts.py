@@ -66,6 +66,46 @@ async def test_synthesize_with_jingle_and_dialogue(tmp_path, monkeypatch):
     assert result.chapters[0]["start_ms"] >= 1300  # le 1ᵉʳ chapitre démarre après le jingle
 
 
+async def test_synthesize_retries_transient_failures(tmp_path, monkeypatch, no_jingle_config):
+    """Un 403 passager du service de voix ne doit pas faire sauter l'épisode."""
+    monkeypatch.setattr(tts, "_RETRY_DELAYS", (0, 0))
+    attempts = {"n": 0}
+
+    async def _flaky(config, text, voice, rate, out: Path) -> None:
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            raise RuntimeError("403 Forbidden")
+        await _fake_segment(config, text, voice, rate, out)
+
+    monkeypatch.setattr(tts, "synthesize_segment", _flaky)
+    result = await tts.synthesize(
+        [Segment("intro", "Bonjour.", "+0%")], Show(id="t"), no_jingle_config,
+        tmp_path / "episode.mp3",
+    )
+
+    assert (tmp_path / "episode.mp3").exists()
+    assert attempts["n"] == 2
+    # La reprise est signalée à l'utilisateur, pas silencieuse
+    assert result.warnings and "403" in result.warnings[0]
+
+
+async def test_synthesize_gives_up_after_last_retry(tmp_path, monkeypatch, no_jingle_config):
+    monkeypatch.setattr(tts, "_RETRY_DELAYS", (0, 0))
+    attempts = {"n": 0}
+
+    async def _always_failing(config, text, voice, rate, out: Path) -> None:
+        attempts["n"] += 1
+        raise RuntimeError("service indisponible")
+
+    monkeypatch.setattr(tts, "synthesize_segment", _always_failing)
+    with pytest.raises(RuntimeError):
+        await tts.synthesize(
+            [Segment("intro", "Bonjour.", "+0%")], Show(id="t"), no_jingle_config,
+            tmp_path / "episode.mp3",
+        )
+    assert attempts["n"] == tts._RETRIES
+
+
 def test_jingle_modules_produce_audio():
     for jingle in (jingle_intro(), jingle_outro(), transition()):
         assert isinstance(jingle, AudioSegment)

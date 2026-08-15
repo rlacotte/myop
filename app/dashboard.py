@@ -8,6 +8,7 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
+from typing import Annotated
 from zoneinfo import ZoneInfo
 
 import feedparser
@@ -22,7 +23,7 @@ from pydantic import BaseModel, Field
 from . import publish
 from . import reading as reading_mod
 from .config import CONFIG_PATH, Config, Show, Source, load_config, save_config
-from .generate import DIST_DIR, build_draft, generate_episode
+from .generate import DIST_DIR, Draft, build_draft, generate_episode
 from .script import PARIS, Segment
 from .tts import list_voices, voice_preview
 
@@ -32,6 +33,11 @@ TEMPLATES = Jinja2Templates(directory=BASE_DIR / "templates")
 VOICE_PATTERN = re.compile(r"^[a-z]{2}-[A-Z]{2}-[A-Za-z0-9]+Neural$")
 ID_PATTERN = re.compile(r"^[a-z0-9-]{1,30}$")
 
+# Émission ciblée par une requête : le front envoie « ?show=<id> ».
+# L'alias est indispensable — sans lui FastAPI attendrait « ?show_id= » et
+# toutes les requêtes retomberaient silencieusement sur la 1ʳᵉ émission.
+ShowParam = Annotated[str | None, Query(alias="show")]
+
 app = FastAPI(title="MYOP")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
@@ -40,6 +46,26 @@ app.mount("/audio", StaticFiles(directory=DIST_DIR / "episodes"), name="audio")
 
 # État des jobs lancés depuis le dashboard (génération / préparation)
 _jobs: dict[str, dict] = {}
+# Références fortes sur les tâches de fond : sans cela la boucle asyncio n'en
+# garde qu'une référence faible et le ramasse-miettes peut interrompre une
+# génération en cours de route.
+_tasks: set[asyncio.Task] = set()
+
+
+def _spawn(coro) -> None:
+    """Lance une tâche de fond en gardant une référence jusqu'à sa fin."""
+    task = asyncio.create_task(coro)
+    _tasks.add(task)
+    task.add_done_callback(_tasks.discard)
+
+
+def _job_key(show: Show) -> str:
+    """Clé d'état d'une génération, toujours dérivée de l'émission résolue.
+
+    Indispensable pour que le front (qui interroge par identifiant) retrouve
+    le job, quelle que soit la façon dont la génération a été lancée.
+    """
+    return f"generate:{show.id}"
 
 
 def _current_show(request: Request | None = None, show_id: str | None = None) -> Show:
@@ -282,13 +308,13 @@ def _show_or_404(show_id: str | None) -> Show:
 
 
 @app.get("/api/sources")
-def get_sources(show_id: str | None = None):
+def get_sources(show_id: ShowParam = None):
     show = _show_or_404(show_id)
     return [{"index": i, **source.model_dump()} for i, source in enumerate(show.sources)]
 
 
 @app.get("/api/library")
-def get_library(show_id: str | None = None):
+def get_library(show_id: ShowParam = None):
     """Bibliothèque de sources intégrée, avec l'état actif pour cette émission."""
     from .library import LIBRARY
 
@@ -389,7 +415,7 @@ def add_source(payload: SourceAdd):
 
 
 @app.delete("/api/sources/{index}")
-def delete_source(index: int, show_id: str | None = None):
+def delete_source(index: int, show_id: ShowParam = None):
     config = load_config()
     show = _show_or_404(show_id)
     target = next(s for s in config.shows if s.id == show.id)
@@ -433,7 +459,7 @@ async def preview_source(url: str):
 
 
 @app.get("/api/sources/health")
-async def sources_health(show_id: str | None = None):
+async def sources_health(show_id: ShowParam = None):
     """Santé de toutes les sources actives (test parallèle en direct)."""
     show = _show_or_404(show_id)
 
@@ -467,7 +493,7 @@ async def sources_health(show_id: str | None = None):
 # ------------------------------------------------------------------ OPML ----
 
 @app.get("/api/opml")
-def export_opml(show_id: str | None = None):
+def export_opml(show_id: ShowParam = None):
     """Export OPML des sources actives (interopérable avec les lecteurs RSS)."""
     show = _show_or_404(show_id)
     outlines = "\n".join(
@@ -583,7 +609,7 @@ def _local_episodes(show: Show) -> list[dict]:
 
 
 @app.get("/api/episodes")
-def get_episodes(show_id: str | None = None):
+def get_episodes(show_id: ShowParam = None):
     return _local_episodes(_show_or_404(show_id))
 
 
@@ -607,15 +633,16 @@ class GenerateRequest(BaseModel):
 @app.post("/api/generate")
 async def start_generation(payload: GenerateRequest | None = None):
     payload = payload or GenerateRequest()
-    job_key = f"generate:{payload.show_id or 'default'}"
-    if _jobs.get(job_key, {}).get("running"):
-        raise HTTPException(409, "Une génération est déjà en cours pour cette émission")
-
     config = load_config()
     try:
         show = config.show(payload.show_id)
     except KeyError:
         raise HTTPException(404, "Émission inconnue")
+
+    job_key = _job_key(show)
+    if _jobs.get(job_key, {}).get("running"):
+        raise HTTPException(409, "Une génération est déjà en cours pour cette émission")
+
     now = None
     if payload.date:
         try:
@@ -657,13 +684,13 @@ async def start_generation(payload: GenerateRequest | None = None):
         finally:
             job["running"] = False
 
-    asyncio.create_task(_run())
+    _spawn(_run())
     return {"ok": True}
 
 
 @app.get("/api/generate/status")
-def generation_status(show_id: str | None = None):
-    job = _jobs.get(f"generate:{show_id or 'default'}", {})
+def generation_status(show_id: ShowParam = None):
+    job = _jobs.get(_job_key(_show_or_404(show_id)), {})
     return {"running": job.get("running", False), "log": job.get("log", []), "result": job.get("result")}
 
 
@@ -680,7 +707,7 @@ class RenderRequest(BaseModel):
 
 
 @app.post("/api/script/draft")
-async def script_draft(show_id: str | None = None):
+async def script_draft(show_id: ShowParam = None):
     """Prépare le script (collecte + IA/déterministe) sans le synthétiser."""
     config = load_config()
     try:
@@ -732,22 +759,25 @@ async def script_render(payload: RenderRequest):
 
     reading_items = [reading_mod.ReadingItem(**item) for item in payload.reading_items]
 
-    class _Draft:
-        pass
+    from .script import episode_title
 
-    from .script import format_date_fr
+    now = datetime.now(tz=PARIS)
+    draft = Draft(
+        show_id=show.id,
+        episode_id=now.date().isoformat(),
+        # Le titre suit l'émission choisie (pas un « Briefing » en dur)
+        title=episode_title(show, now),
+        description=payload.description or " • ".join(payload.titles[:5]),
+        segments=segments,
+        titles=payload.titles,
+        ai_used=payload.ai_used,
+        items_keys=payload.items_keys,
+        reading_items=reading_items,
+    )
 
-    draft = _Draft()
-    draft.items_keys = payload.items_keys
-    draft.segments = segments
-    draft.ai_used = payload.ai_used
-    draft.warnings = []
-    draft.reading_items = reading_items
-    draft.titles = payload.titles
-    draft.description = payload.description or " • ".join(payload.titles[:5])
-    draft.title = f"Briefing du {format_date_fr(datetime.now(tz=PARIS))}"
-
-    job_key = "generate:default"
+    job_key = _job_key(show)
+    if _jobs.get(job_key, {}).get("running"):
+        raise HTTPException(409, "Une génération est déjà en cours pour cette émission")
     _jobs[job_key] = {"running": True, "log": ["Synthèse du script édité…"], "result": None}
     job = _jobs[job_key]
 
@@ -764,10 +794,11 @@ async def script_render(payload: RenderRequest):
             job["log"].append("Terminé ✅")
         except Exception as exc:
             job["result"] = {"ok": False, "reason": f"{exc.__class__.__name__} : {exc}"}
+            job["log"].append(f"Erreur : {exc}")
         finally:
             job["running"] = False
 
-    asyncio.create_task(_run())
+    _spawn(_run())
     return {"ok": True}
 
 
@@ -841,7 +872,7 @@ async def trigger_workflow():
 
 
 @app.get("/api/qr.png")
-def feed_qr_png(show_id: str | None = None):
+def feed_qr_png(show_id: ShowParam = None):
     """QR code du flux RSS : à scanner depuis le lecteur de podcast du téléphone."""
     config = load_config()
     show = _show_or_404(show_id)

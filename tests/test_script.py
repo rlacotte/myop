@@ -27,7 +27,8 @@ def test_format_date_fr(now):
 
 def test_episode_title_and_description(show, now):
     items = [make_item("Titre A"), make_item("Titre B")]
-    assert episode_title(show, now) == "Briefing du vendredi 14 août"
+    # Le titre de l'émission préfixe la date : deux émissions ne se confondent pas
+    assert episode_title(show, now) == "Podcast Test — vendredi 14 août"
     assert episode_description(items) == "Titre A • Titre B"
 
 

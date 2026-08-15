@@ -17,7 +17,7 @@ import feedparser
 import httpx
 from bs4 import BeautifulSoup
 
-from .config import Show
+from .config import Show, Source
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "

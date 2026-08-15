@@ -50,8 +50,12 @@ class Segment:
 
 
 def episode_title(show: Show, now: datetime) -> str:
-    """Titre affiché dans le lecteur : « Briefing du jeudi 14 août »."""
-    return f"Briefing du {format_date_fr(now)}"
+    """Titre affiché dans le lecteur : « Mon Briefing — jeudi 14 août ».
+
+    Le titre de l'émission en préfixe : sans lui, toutes les émissions d'un
+    même compte sortaient sous le même intitulé dans le lecteur de podcast.
+    """
+    return f"{show.title} — {format_date_fr(now)}"
 
 
 def episode_description(items: list[FeedItem]) -> str:

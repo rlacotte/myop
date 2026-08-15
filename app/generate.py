@@ -268,16 +268,16 @@ async def build_draft(
 
 def _publish_statics(config: Config, dist_dir: Path) -> None:
     """Flux de toutes les émissions + pochettes + page publique."""
+    first = next((s for s in config.shows if s.enabled), None)
     for show in config.shows:
         if not show.enabled:
             continue
-        first = next((s for s in config.shows if s.enabled), None)
         is_first = bool(first and show.id == first.id)
         cover_name = "cover.png" if is_first else f"cover-{show.id}.png"
         make_cover(show.title, dist_dir / cover_name)
         try:
             write_feed(config, show, dist_dir)
-        except RuntimeError as exc:  # pages_base absent : premier setup
+        except RuntimeError:  # pages_base absent : premier setup
             pass
     try:
         write_index(config, dist_dir)
@@ -305,8 +305,8 @@ async def generate_episode(
     episodes_dir.mkdir(parents=True, exist_ok=True)
 
     if draft is not None:
-        fetched = type("F", (), {"selected": [], "all_keys": draft.items_keys, "errors": []})()
-        weather_line, segments, ai_used = "", draft.segments, draft.ai_used
+        all_keys = draft.items_keys
+        segments, ai_used = draft.segments, draft.ai_used
         result.warnings = list(draft.warnings)
         reading_items = draft.reading_items
         titles = draft.titles
@@ -329,11 +329,13 @@ async def generate_episode(
         titles = [item.title for item in fetched.selected[: show.num_headlines]]
         description = episode_description(fetched.selected[: show.num_headlines])
         title = episode_title(show, now)
+        all_keys = fetched.all_keys
 
     # Épisode du jour (une seule édition par date : regénérer remplace le fichier)
     episode_id = now.astimezone(PARIS).date().isoformat()
     mp3_path = episodes_dir / f"{episode_id}.mp3"
     synth = await synthesize(segments, show, config, mp3_path)
+    result.warnings.extend(synth.warnings)
     if config.audio.chapters:
         write_chapters(mp3_path, synth.chapters)
 
@@ -350,7 +352,7 @@ async def generate_episode(
     )
 
     # Historisation : tout ce qui a été vu aujourd'hui ne reviendra pas demain
-    save_seen(dist_dir, show, load_seen(dist_dir, show) | set(fetched.all_keys))
+    save_seen(dist_dir, show, load_seen(dist_dir, show) | set(all_keys))
     # Les articles lus dans cet épisode quittent la file d'attente
     if reading_items:
         reading_mod.remove_urls(

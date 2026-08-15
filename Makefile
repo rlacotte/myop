@@ -20,4 +20,5 @@ voices:           ## Liste les voix françaises
 	uv run myop voices --current $$(grep '^voice:' config.yaml | awk '{print $$2}')
 
 test:             ## Lance les tests
+	uv sync --extra dev
 	uv run pytest -q
