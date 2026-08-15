@@ -8,7 +8,7 @@
     <docs>http://www.rssboard.org/rss-specification</docs>
     <generator>python-feedgen</generator>
     <language>fr</language>
-    <lastBuildDate>Fri, 14 Aug 2026 18:01:22 +0200</lastBuildDate>
+    <lastBuildDate>Sat, 15 Aug 2026 07:47:11 +0200</lastBuildDate>
     <itunes:author>Moi</itunes:author>
     <itunes:category text="News"/>
     <itunes:image href="https://rlacotte.github.io/myop/cover.png"/>
@@ -21,11 +21,20 @@
     <item>
       <title>Briefing du vendredi 14 août</title>
       <link>https://rlacotte.github.io/myop/episodes/matin/2026-08-14.mp3</link>
-      <description>Difficultés, fatigue, joie… Ces cavaliers atteints de troubles autistiques sont devenus des champions, ils se confient • « Les anciens n’ont pas voulu voir ça »: vidé de ses collections, ce musée du Maine-et-Loire est bien mort • « On est en train de perdre notre jeunesse »: dans le nord du Maroc, l’ombre des noyés de Ceuta • La série Lanterns fait-elle (enfin) oublier le film avec Ryan Reynolds? • Guillaume Désanges: « Toute œuvre d’art est subversive en ce qu’elle est la corruption d’une vision figée du monde » • Charlotte Puiseux, philosophe et militante antivalidiste, est morte • Grève à EasyJet: 55 vols annulés samedi au départ de la France, et "probablement autant dimanche" selon un syndicat • « Secret Story »: « On a commencé ensemble et on a finalement fini ensemble », révèlent les trois éliminés de la demie • Sécheresse: le niveau du Rhin perturbe l’approvisionnement en carburant dans l’est de la France • Incendie dans les Landes: la situation redevient « défavorable » en raison du vent, 1 100 hectares parcourus • EN DIRECT - Incendie dans les Landes: le vent s’est levé, la situation redevient «défavorable» • bioAffinity Technologies clôture un placement privé de 4 millions de dollars</description>
+      <description>Plutôt qu'un abonnement ChatGPT ou Claude, cette licence IA à vie à moins de 22€ regroupe plusieurs modèles • Difficultés, fatigue, joie… Ces cavaliers atteints de troubles autistiques sont devenus des champions, ils se confient • « Les anciens n’ont pas voulu voir ça »: vidé de ses collections, ce musée du Maine-et-Loire est bien mort • « On est en train de perdre notre jeunesse »: dans le nord du Maroc, l’ombre des noyés de Ceuta • La série Lanterns fait-elle (enfin) oublier le film avec Ryan Reynolds? • JOURNAL DE 18H, émission du vendredi 14 août 2026 • Guillaume Désanges: « Toute œuvre d’art est subversive en ce qu’elle est la corruption d’une vision figée du monde » • EN DIRECT - Incendie dans les Landes: le vent s’est levé, la situation redevient «défavorable» • Charlotte Puiseux, philosophe et militante antivalidiste, est morte • Grève à EasyJet: 55 vols annulés samedi au départ de la France, et "probablement autant dimanche" selon un syndicat • Americas Gold and Silver affiche une forte croissance au T2 2026 • « Secret Story »: « On a commencé ensemble et on a finalement fini ensemble », révèlent les trois éliminés de la demie</description>
       <guid isPermaLink="false">myop-matin-2026-08-14</guid>
-      <enclosure url="https://rlacotte.github.io/myop/episodes/matin/2026-08-14.mp3" length="1012317" type="audio/mpeg"/>
-      <pubDate>Fri, 14 Aug 2026 18:01:22 +0200</pubDate>
-      <itunes:duration>2:48</itunes:duration>
+      <enclosure url="https://rlacotte.github.io/myop/episodes/matin/2026-08-14.mp3" length="893552" type="audio/mpeg"/>
+      <pubDate>Fri, 14 Aug 2026 18:04:03 +0200</pubDate>
+      <itunes:duration>2:28</itunes:duration>
+    </item>
+    <item>
+      <title>Briefing du samedi 15 août</title>
+      <link>https://rlacotte.github.io/myop/episodes/matin/2026-08-15.mp3</link>
+      <description>« Préserver mon bien-être et profiter de la vie »: espoir du tennis féminin, Lulu Sun se retire du sport • Canicule: 64 départements maintenus en vigilance orange, une baisse progressive des températures débute samedi • Une faille du partage d'écran permet de prendre le contrôle des Mac à distance • Classement de Shanghaï: Paris-Saclay en 13e position pour la France, les Américains indétrônables • L’Ambilight aura rarement été aussi accessible qu’avec ce TV Philips 4K de 55″ bradé à seulement 379 € • Le directeur des ventes d’Avidbank Holdings cède des actions pour 331.400$ • Qui était Finlay Tarling, jeune espoir du cyclisme britannique mort à 19 ans sur le Tour du Portugal? • Elle a dupé la Silicon Valley pendant 15 ans avant de devenir le visage d’une immense fraude, voici sa folle histoire • Avec les canicules à répétition, l’entreprise Le Parapluie de Cherbourg mise sur les ombrelles haut de gamme • Que se passe-t-il si l’USD/JPY dépasse 160? « La crédibilité s’effrite » • Pas de taxe au kilomètre pour les VE, 20 km en plus pour la R5, Porsche forme une alliance avec Xpeng: le récap’ Vroom de la semaine • L'Indonésie touchée par un puissant séisme, au moins 20 morts</description>
+      <guid isPermaLink="false">myop-matin-2026-08-15</guid>
+      <enclosure url="https://rlacotte.github.io/myop/episodes/matin/2026-08-15.mp3" length="1192744" type="audio/mpeg"/>
+      <pubDate>Sat, 15 Aug 2026 07:47:11 +0200</pubDate>
+      <itunes:duration>3:18</itunes:duration>
     </item>
   </channel>
 </rss>
