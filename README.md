@@ -117,6 +117,47 @@ Barre latérale : tu choisis l'émission en haut, tout l'écran suit.
 | **Sources** | bibliothèque 12 catégories (activation par flux ou par catégorie, recherche, test en direct), santé des sources, OPML, flux perso |
 | **Réglages** | l'émission, la voix, le contenu, l'écriture (persona et **exemples de ton**), le podcast (auteur, rétention) |
 
+## ▲ Déploiement Vercel (optionnel)
+
+GitHub Pages reste **l'adresse officielle du flux** : les abonnements en cours
+ne bougent jamais. Vercel ajoute deux choses par-dessus.
+
+### Le site en miroir
+
+Servi par le CDN, déployé automatiquement après chaque publication depuis la
+copie gh-pages (la seule qui contient tout le site).
+
+```bash
+vercel link                       # une fois, pour créer le projet
+# puis dans config.yaml : publishing.vercel_mirror + les deux identifiants
+uv run myop publish               # publie sur gh-pages ET met le miroir à jour
+```
+
+Pour que GitHub Actions fasse de même, ajoute le secret `VERCEL_TOKEN` au
+dépôt. Sans lui, l'étape est simplement sautée.
+
+### Le dashboard à distance
+
+Le même dashboard, accessible depuis le téléphone. Il **ne fabrique pas
+d'épisode** — la synthèse vocale réclame ffmpeg et plusieurs minutes, ce qui
+reste le travail de GitHub Actions. Il sait en revanche tout consulter, tout
+régler, et **déclencher la génération**.
+
+| Variable | Rôle |
+|---|---|
+| `MYOP_PASSWORD` | **obligatoire** — sans elle le dashboard reste fermé (503) |
+| `MYOP_REPO` | `owner/repo`, d'où sont lues la config et les données |
+| `MYOP_GITHUB_TOKEN` | jeton `contents:write` + `actions:write`. Sans lui, le dashboard est en **lecture seule** |
+
+```bash
+vercel deploy --prod
+```
+
+Le stockage, c'est le dépôt lui-même : chaque réglage enregistré est commité,
+donc la prochaine génération travaille avec. La liste des épisodes est lue dans
+le flux public, la file de lecture et les votes sur `gh-pages` — là où le
+générateur va les chercher.
+
 ## 🧰 Commandes
 
 ```bash

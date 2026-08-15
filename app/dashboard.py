@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import hashlib
 import io
 import json
+import os
 import re
+import secrets
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
@@ -22,6 +26,7 @@ from pydantic import BaseModel, Field
 
 from . import publish
 from . import reading as reading_mod
+from . import remote
 from .config import CONFIG_PATH, Config, Show, Source, load_config, save_config
 from .generate import DIST_DIR, Draft, build_draft, generate_episode
 from .script import PARIS, Segment
@@ -29,6 +34,26 @@ from .tts import list_voices, voice_preview
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES = Jinja2Templates(directory=BASE_DIR / "templates")
+
+# --------------------------------------------------------------- mode distant --
+# Sur une plateforme sans disque (Vercel), la config vient du dépôt GitHub et
+# l'état vit dans /tmp. Tout ce qui produit de l'audio reste au workflow.
+REMOTE = remote.is_remote()
+if REMOTE:
+    from . import config as config_module
+
+    hydrated = remote.hydrate_config()
+    if hydrated:
+        config_module.CONFIG_PATH = hydrated
+        CONFIG_PATH = hydrated
+    DIST_DIR = remote.CACHE_DIR / "dist"
+
+SESSION_COOKIE = "myop_session"
+
+LOCAL_ONLY = (
+    "Cette action fabrique de l'audio : elle a besoin de ffmpeg et de plusieurs "
+    "minutes. Lance-la en local (`myop generate`) ou déclenche l'action GitHub."
+)
 
 VOICE_PATTERN = re.compile(r"^[a-z]{2}-[A-Z]{2}-[A-Za-z0-9]+Neural$")
 ID_PATTERN = re.compile(r"^[a-z0-9-]{1,30}$")
@@ -43,6 +68,52 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 (DIST_DIR / "episodes").mkdir(parents=True, exist_ok=True)
 app.mount("/audio", StaticFiles(directory=DIST_DIR / "episodes"), name="audio")
+
+
+@app.middleware("http")
+async def guard(request: Request, call_next):
+    """Mot de passe obligatoire dès que le dashboard est exposé publiquement.
+
+    En local (127.0.0.1) rien ne change. En distant, l'absence de mot de passe
+    ferme l'accès plutôt que de l'ouvrir : un dashboard ouvert laisserait
+    n'importe qui réécrire la config du podcast et déclencher des actions.
+    """
+    if not REMOTE or request.url.path.startswith("/static"):
+        return await call_next(request)
+
+    expected = os.environ.get("MYOP_PASSWORD", "")
+    if not expected:
+        return Response(
+            "MYOP_PASSWORD n'est pas défini : le dashboard distant reste fermé.",
+            status_code=503,
+        )
+    # Le cookie prime : les navigateurs n'ajoutent pas l'en-tête Basic aux
+    # requêtes fetch() de la page, et le dashboard est entièrement piloté par
+    # elles. Sans cookie, l'interface s'afficherait vide.
+    session = hashlib.sha256(f"myop:{expected}".encode()).hexdigest()
+    if secrets.compare_digest(request.cookies.get(SESSION_COOKIE, ""), session):
+        return await call_next(request)
+
+    header = request.headers.get("authorization", "")
+    supplied = ""
+    if header.startswith("Basic "):
+        try:
+            supplied = base64.b64decode(header[6:]).decode().split(":", 1)[-1]
+        except (ValueError, UnicodeDecodeError):
+            supplied = ""
+    if not secrets.compare_digest(supplied, expected):
+        return Response(
+            "Authentification requise.",
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="MYOP"'},
+        )
+
+    response = await call_next(request)
+    response.set_cookie(
+        SESSION_COOKIE, session, max_age=30 * 24 * 3600,
+        httponly=True, secure=True, samesite="lax",
+    )
+    return response
 
 # État des jobs lancés depuis le dashboard (génération / préparation)
 _jobs: dict[str, dict] = {}
@@ -165,7 +236,10 @@ def get_state():
         "feed_url": config.feed_url(_current_show()),
         "pages_base": config.github.pages_base,
         "repo": config.github.repo,
-        "has_repo": publish.remote_slug() is not None,
+        # `git remote` n'existe pas sur une plateforme sans dépôt cloné
+        "has_repo": bool(remote.repo_slug()) if REMOTE else publish.remote_slug() is not None,
+        "remote": REMOTE,
+        "can_write": remote.can_write() if REMOTE else True,
         "ai_enabled": config.ai.enabled,
         "ai_model": config.ai.model,
         "ai_available": load_api_key(config) is not None,
@@ -264,7 +338,7 @@ def put_settings(update: SettingsUpdate):
                 setattr(config, key, value)
 
     validated = Config.model_validate(config.model_dump())
-    save_config(validated)
+    _save(validated)
     return {"ok": True, "feed_url": validated.feed_url(target)}
 
 
@@ -288,7 +362,7 @@ def create_show(payload: ShowCreate):
             sources=list(config.show().sources[:5]),  # départ : 5 sources du show courant
         )
     )
-    save_config(config)
+    _save(config)
     return {"ok": True, "id": show_id}
 
 
@@ -298,7 +372,7 @@ def delete_show(show_id: str):
     if len(config.shows) <= 1:
         raise HTTPException(400, "Impossible de supprimer la dernière émission")
     config.shows = [s for s in config.shows if s.id != show_id]
-    save_config(config)
+    _save(config)
     return {"ok": True}
 
 
@@ -412,7 +486,7 @@ def toggle_library_source(payload: LibraryToggle):
         target.sources = [s for s in target.sources if s.url != feed["url"]]
     else:
         return {"ok": True, "unchanged": True}
-    save_config(config)
+    _save(config)
     return {"ok": True, "active_count": len(target.sources)}
 
 
@@ -435,7 +509,7 @@ def toggle_library_category(payload: CategoryToggle):
                 target.sources.append(Source(name=feed["name"], url=feed["url"]))
     else:
         target.sources = [s for s in target.sources if s.url not in category_urls]
-    save_config(config)
+    _save(config)
     return {"ok": True, "active_count": len(target.sources)}
 
 
@@ -450,7 +524,7 @@ def add_source(payload: SourceAdd):
     if any(source.url == url for source in target.sources):
         raise HTTPException(400, "Ce flux est déjà dans tes sources")
     target.sources.append(Source(name=name, url=url))
-    save_config(config)
+    _save(config)
     return {"ok": True}
 
 
@@ -462,7 +536,7 @@ def delete_source(index: int, show_id: ShowParam = None):
     if not 0 <= index < len(target.sources):
         raise HTTPException(404, "Source inconnue")
     target.sources.pop(index)
-    save_config(config)
+    _save(config)
     return {"ok": True}
 
 
@@ -585,7 +659,7 @@ def import_opml(payload: OpmlImport):
         if url not in existing:
             target.sources.append(Source(name=name[:80] or url, url=url))
             added += 1
-    save_config(config)
+    _save(config)
     return {"ok": True, "added": added, "total": len(target.sources)}
 
 
@@ -595,8 +669,33 @@ class ReadingAdd(BaseModel):
     url: str
 
 
+def _pull_state(name: str) -> None:
+    """Récupère un fichier d'état publié (file de lecture, votes) dans le cache.
+
+    Ces fichiers vivent sur gh-pages : c'est là que le générateur les relit au
+    début de chaque épisode.
+    """
+    if not REMOTE:
+        return
+    content = remote.read_file(name, branch="gh-pages")
+    if content is None:
+        return
+    DIST_DIR.mkdir(parents=True, exist_ok=True)
+    (DIST_DIR / name).write_text(content, encoding="utf-8")
+
+
+def _push_state(name: str) -> None:
+    if not REMOTE:
+        return
+    path = DIST_DIR / name
+    content = path.read_text(encoding="utf-8") if path.exists() else "[]"
+    if not remote.push_state(name, content):
+        raise HTTPException(502, "Impossible d'écrire dans le dépôt (MYOP_GITHUB_TOKEN ?)")
+
+
 @app.get("/api/reading")
 def get_reading():
+    _pull_state("reading.json")
     queue = reading_mod.load_queue(DIST_DIR)
     return [
         {"url": item.url, "title": item.title, "chars": len(item.text)}
@@ -608,28 +707,49 @@ def get_reading():
 async def add_reading(payload: ReadingAdd):
     if not payload.url.startswith(("http://", "https://")):
         raise HTTPException(400, "URL invalide")
+    _pull_state("reading.json")
     try:
         item = await reading_mod.add_article(payload.url.strip(), DIST_DIR)
     except httpx.HTTPError as exc:
         raise HTTPException(502, f"Page inaccessible : {exc.__class__.__name__}") from exc
     if item is None:
         raise HTTPException(422, "Rien à lire sur cette page (ou déjà dans la liste)")
+    _push_state("reading.json")
     return {"ok": True, "title": item.title}
 
 
 @app.delete("/api/reading/{index}")
 def delete_reading(index: int):
+    _pull_state("reading.json")
     queue = reading_mod.load_queue(DIST_DIR)
     if not 0 <= index < len(queue):
         raise HTTPException(404, "Article inconnu")
     queue.pop(index)
     reading_mod.save_queue(DIST_DIR, queue)
+    _push_state("reading.json")
     return {"ok": True}
 
 
 # ------------------------------------------------------------- épisodes -----
 
+def _save(config: Config) -> None:
+    """Enregistre la config — et la renvoie au dépôt quand on tourne à distance.
+
+    Sans ce retour, une modification faite depuis Vercel vivrait dans un /tmp
+    que la prochaine requête ne verrait déjà plus.
+    """
+    save_config(config)
+    if REMOTE and not remote.push_config(CONFIG_PATH):
+        raise HTTPException(
+            502, "Impossible d'écrire dans le dépôt GitHub (MYOP_GITHUB_TOKEN ?)"
+        )
+
+
 def _local_episodes(show: Show) -> list[dict]:
+    if REMOTE:
+        # Pas de disque : la liste des épisodes se lit dans le flux publié
+        feed_url = load_config().feed_url(show)
+        return remote.episodes_from_feed(feed_url) if feed_url else []
     metas = []
     episodes_dir = DIST_DIR / "episodes" / show.id
     if not episodes_dir.exists() and show.id == "matin":
@@ -673,6 +793,8 @@ class GenerateRequest(BaseModel):
 @app.post("/api/generate")
 async def start_generation(payload: GenerateRequest | None = None):
     payload = payload or GenerateRequest()
+    if REMOTE:
+        raise HTTPException(501, LOCAL_ONLY)
     config = load_config()
     try:
         show = config.show(payload.show_id)
@@ -840,6 +962,8 @@ def delete_script_draft(show_id: ShowParam = None):
 @app.post("/api/script/render")
 async def script_render(payload: RenderRequest):
     """Synthétise l'épisode à partir du script (éventuellement édité)."""
+    if REMOTE:
+        raise HTTPException(501, LOCAL_ONLY)
     config = load_config()
     try:
         show = config.show(payload.show_id)
@@ -920,7 +1044,9 @@ class FeedbackVote(BaseModel):
 def vote(payload: FeedbackVote):
     from .feedback import record_vote
 
+    _pull_state("feedback.json")
     feedback = record_vote(DIST_DIR, source=payload.source, title=payload.title, good=payload.good)
+    _push_state("feedback.json")
     return {
         "ok": True,
         "source_score": feedback.source_scores.get(payload.source, 0),
@@ -932,6 +1058,7 @@ def vote(payload: FeedbackVote):
 def get_feedback():
     from .feedback import load_feedback
 
+    _pull_state("feedback.json")
     feedback = load_feedback(DIST_DIR)
     return {
         "source_scores": feedback.source_scores,
@@ -944,6 +1071,7 @@ def reset_feedback():
     from .feedback import Feedback, save_feedback
 
     save_feedback(DIST_DIR, Feedback())
+    _push_state("feedback.json")
     return {"ok": True}
 
 
@@ -959,12 +1087,17 @@ async def _git_step(func, *args):
 
 @app.post("/api/publish-config")
 async def publish_config():
+    if REMOTE:
+        # Chaque enregistrement commite déjà : il n'y a rien à pousser de plus.
+        return {"ok": True, "message": "Réglages déjà commités sur GitHub ✓"}
     await _git_step(publish.push_config, CONFIG_PATH)
     return {"ok": True, "message": "Config poussée sur GitHub ✓"}
 
 
 @app.post("/api/publish-dist")
 async def publish_dist_endpoint():
+    if REMOTE:
+        raise HTTPException(501, LOCAL_ONLY)
     if not any((DIST_DIR / "episodes").glob("**/*.json")):
         raise HTTPException(400, "Aucun épisode à publier — génère-en un d'abord")
     await _git_step(publish.publish_dist, DIST_DIR, "publication depuis le dashboard")
@@ -973,6 +1106,12 @@ async def publish_dist_endpoint():
 
 @app.post("/api/trigger")
 async def trigger_workflow():
+    """Déclenche la génération distante : c'est le seul moyen de produire
+    un épisode depuis un dashboard hébergé."""
+    if REMOTE:
+        if not remote.dispatch_workflow():
+            raise HTTPException(502, "Déclenchement refusé (MYOP_GITHUB_TOKEN ?)")
+        return {"ok": True, "message": "Génération lancée sur GitHub Actions 🚀"}
     await _git_step(publish.trigger_workflow)
     return {"ok": True, "message": "Workflow GitHub Actions déclenché 🚀"}
 

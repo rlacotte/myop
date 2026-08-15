@@ -1,0 +1,20 @@
+# Dépendances du dashboard hébergé (Vercel lit ce fichier ; en local, uv et
+# pyproject.toml font foi). Les paquets audio restent nécessaires parce que
+# app.dashboard importe le pipeline de génération, même s'il refuse de le
+# lancer à distance.
+fastapi>=0.110
+jinja2>=3.1
+python-multipart>=0.0.9
+httpx>=0.27
+feedparser>=6.0
+beautifulsoup4>=4.12
+edge-tts>=6.1
+pydantic>=2.6
+PyYAML>=6.0
+qrcode[pil]>=7.4
+Pillow>=10.2
+feedgen>=1.0
+mutagen>=1.47
+pydub>=0.25
+# pydub importe audioop, retiré de la bibliothèque standard en 3.13
+audioop-lts>=0.2; python_version >= "3.13"

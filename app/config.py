@@ -104,6 +104,14 @@ class PublishingConfig(BaseModel):
     """
 
     keep_episodes: int = Field(default=60, ge=0, le=1000)  # 0 = tout conserver
+    # Miroir Vercel : le site est aussi servi par le CDN. GitHub Pages reste
+    # l'adresse officielle du flux — les abonnements en cours ne bougent pas.
+    vercel_mirror: bool = False
+    # Identifiants du projet Vercel (publics, pas des secrets : seul le
+    # VERCEL_TOKEN l'est). Les poser ici rend le déploiement reproductible
+    # depuis GitHub Actions comme en local.
+    vercel_project_id: str | None = None
+    vercel_org_id: str | None = None
 
 
 class AnalyticsConfig(BaseModel):

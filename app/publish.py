@@ -156,24 +156,83 @@ def prune_published_episodes(dist_dir: Path, worktree: Path, keep: int) -> list[
     return removed
 
 
+def link_vercel_project(directory: Path, config) -> bool:
+    """Écrit le lien de projet Vercel dans le dossier à déployer.
+
+    La CLI lit « .vercel/project.json » depuis son répertoire de travail :
+    poser le lien dans la copie gh-pages (recréée à chaque publication)
+    garantit qu'on déploie toujours le bon projet, en local comme en CI.
+    """
+    import json
+
+    project = config.publishing.vercel_project_id
+    org = config.publishing.vercel_org_id
+    if not project or not org:
+        return False
+    link = directory / ".vercel"
+    link.mkdir(parents=True, exist_ok=True)
+    (link / "project.json").write_text(
+        json.dumps({"projectId": project, "orgId": org}), encoding="utf-8"
+    )
+    return True
+
+
+def deploy_vercel(directory: Path, config=None) -> str | None:
+    """Déploie un dossier statique en production sur Vercel. Retourne l'URL.
+
+    Le miroir ne doit jamais faire échouer une publication : GitHub Pages
+    reste l'adresse officielle du flux, Vercel n'en est qu'une copie.
+    """
+    import os
+
+    if config is None:
+        from .config import load_config
+
+        config = load_config()
+    if not shutil.which("vercel"):
+        print("   ⚠️  Miroir Vercel ignoré : la CLI `vercel` est introuvable.")
+        return None
+    if not link_vercel_project(directory, config):
+        print("   ⚠️  Miroir Vercel ignoré : projet non configuré (`myop mirror --setup`).")
+        return None
+
+    command = ["vercel", "deploy", ".", "--prod", "--yes"]
+    if os.environ.get("VERCEL_TOKEN"):
+        command += ["--token", os.environ["VERCEL_TOKEN"]]
+    try:
+        url = sh(command, cwd=directory).splitlines()[-1].strip()
+    except (RuntimeError, IndexError) as exc:
+        print(f"   ⚠️  Miroir Vercel non mis à jour : {exc}")
+        return None
+    print(f"   🌍 Miroir Vercel → {url}")
+    return url
+
+
 def publish_dist(
     dist_dir: Path | None = None,
     message: str = "nouvel épisode",
     *,
     keep_episodes: int | None = None,
+    mirror: bool | None = None,
 ) -> None:
     """Publie le contenu de dist/ sur la branche gh-pages.
 
     Les épisodes déjà en ligne sont conservés, à l'exception de ceux que la
     rétention (config `publishing.keep_episodes`) fait sortir du flux.
+    `mirror` déploie en plus le site sur Vercel (copie servie par CDN).
     """
     dist_dir = dist_dir or ROOT / "dist"
     if not dist_dir.exists():
         raise RuntimeError("Rien à publier : dist/ est absent.")
-    if keep_episodes is None:
+    config = None
+    if keep_episodes is None or mirror is None:
         from .config import load_config
 
-        keep_episodes = load_config().publishing.keep_episodes
+        config = load_config()
+        if keep_episodes is None:
+            keep_episodes = config.publishing.keep_episodes
+        if mirror is None:
+            mirror = config.publishing.vercel_mirror
 
     if PUBLISH_DIR.exists():
         sh(["git", "worktree", "remove", "--force", str(PUBLISH_DIR)])
@@ -206,6 +265,12 @@ def publish_dist(
     if status:
         sh(["git", "commit", "-m", message], cwd=PUBLISH_DIR)
         sh(["git", "push", "origin", "HEAD:gh-pages"], cwd=PUBLISH_DIR)
+
+    # Le miroir se déploie depuis la copie de travail gh-pages, seul endroit
+    # qui contient le site complet : dist/ n'a que les MP3 du jour.
+    if mirror:
+        deploy_vercel(PUBLISH_DIR, config)
+
     sh(["git", "worktree", "remove", "--force", str(PUBLISH_DIR)])
 
 

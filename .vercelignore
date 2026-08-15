@@ -1,0 +1,17 @@
+# Ce qui n'a rien à faire dans la fonction serverless
+.venv
+.git
+.github
+.pytest_cache
+__pycache__
+tests
+dist
+.publish
+scripts
+uv.lock
+Makefile
+.openrouter_api_key
+.elevenlabs_api_key
+
+# README.md doit rester : pyproject.toml le référence et la construction
+# du paquet par Vercel échoue sans lui.
