@@ -8,7 +8,7 @@
     <docs>http://www.rssboard.org/rss-specification</docs>
     <generator>python-feedgen</generator>
     <language>fr</language>
-    <lastBuildDate>Sun, 16 Aug 2026 07:53:37 +0200</lastBuildDate>
+    <lastBuildDate>Mon, 17 Aug 2026 07:59:57 +0200</lastBuildDate>
     <itunes:author>Moi</itunes:author>
     <itunes:category text="News"/>
     <itunes:image href="https://rlacotte.github.io/myop/cover.png"/>
@@ -18,6 +18,16 @@
       <itunes:email>moi@example.com</itunes:email>
     </itunes:owner>
     <itunes:subtitle>Émission générée par MYOP</itunes:subtitle>
+    <item>
+      <title>Mon Briefing — lundi 17 août</title>
+      <link>https://rlacotte.github.io/myop/episodes/matin/2026-08-17.mp3</link>
+      <description>« Si on veut faire grandir notre championnat… »: pour Hakimi, Lens - PSG aurait dû se jouer sur un terrain neutre • Alvin Junior Mak, étoile montante de la mode franco-congolaise propulsé par le Mondial • Qualcomm détaille sa puce Snapdragon C pour PC Windows à 300 dollars • La Ford T: quand les États-Unis inventent le concept de voiture low-cost • Trophée des champions: à 10 contre 11, Lens fait tomber le PSG • La directrice médicale d’Insmed vend des actions pour 3,49 millions $ • Canicule: Les vigilances orange levées mardi matin dans les six derniers départements • Régine Komokoli, élue LFI à Rennes et victime de racisme: «Je ne peux pas arrêter, ce serait trop facile pour ceux qui m’attaquent» • Pourquoi l’action Alibaba grimpe-t-elle aujourd’hui? • Pourquoi l’action Shanghai Henlius Biotech progresse-t-elle aujourd’hui? • Hayden Panettiere, révélée par les séries « Heroes » et « Nashville », est morte à l’âge de 36 ans • À Qusra, en Cisjordanie occupée, les colons israéliens «veulent un état d'apartheid»</description>
+      <guid isPermaLink="false">myop-matin-2026-08-17</guid>
+      <enclosure url="https://rlacotte.github.io/myop/episodes/matin/2026-08-17.mp3" length="1095157" type="audio/mpeg"/>
+      <pubDate>Mon, 17 Aug 2026 07:59:57 +0200</pubDate>
+      <itunes:duration>3:02</itunes:duration>
+        <podcast:transcript url="https://rlacotte.github.io/myop/episodes/matin/2026-08-17.vtt" type="text/vtt" language="fr"/>
+  </item>
     <item>
       <title>Mon Briefing — dimanche 16 août</title>
       <link>https://rlacotte.github.io/myop/episodes/matin/2026-08-16.mp3</link>
