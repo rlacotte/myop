@@ -8,7 +8,7 @@
     <docs>http://www.rssboard.org/rss-specification</docs>
     <generator>python-feedgen</generator>
     <language>fr</language>
-    <lastBuildDate>Mon, 17 Aug 2026 07:59:57 +0200</lastBuildDate>
+    <lastBuildDate>Tue, 18 Aug 2026 07:55:28 +0200</lastBuildDate>
     <itunes:author>Moi</itunes:author>
     <itunes:category text="News"/>
     <itunes:image href="https://rlacotte.github.io/myop/cover.png"/>
@@ -18,6 +18,16 @@
       <itunes:email>moi@example.com</itunes:email>
     </itunes:owner>
     <itunes:subtitle>Émission générée par MYOP</itunes:subtitle>
+    <item>
+      <title>Mon Briefing — mardi 18 août</title>
+      <link>https://rlacotte.github.io/myop/episodes/matin/2026-08-18.mp3</link>
+      <description>Masters 1000 de Cincinnati. Zverev s’en sort face à Atmane, Arthur Fils prend le meilleur sur Lehecka et rejoint les 8es • Piratage de l’Éducation nationale: une fuite de données expose 1,22 million d’élèves • Avec la brigade fluviale de Paris, entre prévention et interventions: «On peut être très bon nageur et se noyer» • Présidentielle 2027: Gérald Darmanin rallie le camp d'Édouard Philippe • NBA: désaccord dans la famille Buss, propriétaire historique des Los Angeles Lakers, pour vendre ses parts • ENTRETIEN. « Avec la France, on vise le podium »: Julien Épaillard ambitieux aux Mondiaux d’équitation à Aix-la-Chapelle • Sentir battre le cœur des Ukrainiens avec Tetyana Ogarkova • Canada: menacé par de nouveaux droits de douane, Ottawa se démène pour trouver un accord avec Washington • World Liberty: La crypto des Trump s’allie à WorldClaw, qui distribue des IA chinoises sous restrictions US • Canicule: Fin de la vague de chaleur, plus aucun département en vigilance orange • La revue de presse internationale, émission du mardi 18 août 2026 • Vingt entrepôts frappés: Kiev veut faire entrer la guerre dans le panier des Russes</description>
+      <guid isPermaLink="false">myop-matin-2026-08-18</guid>
+      <enclosure url="https://rlacotte.github.io/myop/episodes/matin/2026-08-18.mp3" length="1033341" type="audio/mpeg"/>
+      <pubDate>Tue, 18 Aug 2026 07:55:28 +0200</pubDate>
+      <itunes:duration>2:51</itunes:duration>
+        <podcast:transcript url="https://rlacotte.github.io/myop/episodes/matin/2026-08-18.vtt" type="text/vtt" language="fr"/>
+  </item>
     <item>
       <title>Mon Briefing — lundi 17 août</title>
       <link>https://rlacotte.github.io/myop/episodes/matin/2026-08-17.mp3</link>
