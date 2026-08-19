@@ -8,7 +8,7 @@
     <docs>http://www.rssboard.org/rss-specification</docs>
     <generator>python-feedgen</generator>
     <language>fr</language>
-    <lastBuildDate>Tue, 18 Aug 2026 07:55:28 +0200</lastBuildDate>
+    <lastBuildDate>Wed, 19 Aug 2026 07:56:26 +0200</lastBuildDate>
     <itunes:author>Moi</itunes:author>
     <itunes:category text="News"/>
     <itunes:image href="https://rlacotte.github.io/myop/cover.png"/>
@@ -18,6 +18,16 @@
       <itunes:email>moi@example.com</itunes:email>
     </itunes:owner>
     <itunes:subtitle>Émission générée par MYOP</itunes:subtitle>
+    <item>
+      <title>Mon Briefing — mercredi 19 août</title>
+      <link>https://rlacotte.github.io/myop/episodes/matin/2026-08-19.mp3</link>
+      <description>Visage connu des médias, connexion lointaine avec Zidane… Qui est Xavier Giraudon, le nouveau chef de presse des Bleus? • Masters 1000 de Cincinnati. Brandon Nakashima fait craquer Daniil Medvedev et file en huitième de finale • En Zambie, le président sortant Hakainde Hichilema réélu, son principal adversaire conteste le résultat • « La journée sur les toilettes! »: Duplantis assume une « stupide erreur » avant son titre de champion d’Europe • Zaptec enregistre un chiffre d’affaires record au T2 2026 • Fairphone 6+: le smartphone réparable passe à 12 Go de RAM et augmente son prix • Emmi relève ses prévisions de croissance organique grâce aux volumes • 750 W, 120 Nm de couple et 800 Wh de batterie: le nouveau VTTAE de Scott veut frapper fort • Le bénéfice de Straumann déçoit en raison de coûts juridiques et de MA • Etudiants en galère d’appart: «Ils me demandent de faire un virement avant la visite» • Angélique Kidjo: «Mon étoile sur le "Walk of Fame" est pour l'Afrique, le Bénin, mais aussi la France» • A qui appartient la nuit?</description>
+      <guid isPermaLink="false">myop-matin-2026-08-19</guid>
+      <enclosure url="https://rlacotte.github.io/myop/episodes/matin/2026-08-19.mp3" length="815420" type="audio/mpeg"/>
+      <pubDate>Wed, 19 Aug 2026 07:56:26 +0200</pubDate>
+      <itunes:duration>2:15</itunes:duration>
+        <podcast:transcript url="https://rlacotte.github.io/myop/episodes/matin/2026-08-19.vtt" type="text/vtt" language="fr"/>
+  </item>
     <item>
       <title>Mon Briefing — mardi 18 août</title>
       <link>https://rlacotte.github.io/myop/episodes/matin/2026-08-18.mp3</link>
