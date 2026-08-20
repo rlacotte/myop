@@ -8,7 +8,7 @@
     <docs>http://www.rssboard.org/rss-specification</docs>
     <generator>python-feedgen</generator>
     <language>fr</language>
-    <lastBuildDate>Wed, 19 Aug 2026 07:56:26 +0200</lastBuildDate>
+    <lastBuildDate>Thu, 20 Aug 2026 07:56:34 +0200</lastBuildDate>
     <itunes:author>Moi</itunes:author>
     <itunes:category text="News"/>
     <itunes:image href="https://rlacotte.github.io/myop/cover.png"/>
@@ -18,6 +18,16 @@
       <itunes:email>moi@example.com</itunes:email>
     </itunes:owner>
     <itunes:subtitle>Émission générée par MYOP</itunes:subtitle>
+    <item>
+      <title>Mon Briefing — jeudi 20 août</title>
+      <link>https://rlacotte.github.io/myop/episodes/matin/2026-08-20.mp3</link>
+      <description>Nouvelle nuit de bombardements russes meurtriers à Kiev et dans sa région • La barbe à papa, invention d'un dentiste • Google Messages: le RCS se retrouve bloqué sur certains smartphones Samsung • TCM Group affiche une hausse de revenus au T2 et maintient ses prévisions 2026 • Sensation de la Coupe du monde, le Cap-Vert nomme un nouveau sélectionneur • Bitcoin frôle 70 000 $: le short squeeze qui a tout changé en une nuit • « Elle est loin la mer! »: des milliers d’enfants du Secours populaire en vacances à Deauville, le temps d’une journée • GeForce NOW en version finale pour Linux, GOG et l’Epic Games Store en approche • WTA 1000 Cincinnati. Aryna Sabalenka sortie dès les huitièmes de finale par Sara Bejlek • Le prince Harry et son épouse Meghan vont revenir vivre au Royaume-Uni • Les leçons à tirer d’un été brûlant, non pas hors norme, mais nouvelle norme, par Corinne Lepage • Kid ASA: le chiffre d’affaires du T2 dépasse les prévisions</description>
+      <guid isPermaLink="false">myop-matin-2026-08-20</guid>
+      <enclosure url="https://rlacotte.github.io/myop/episodes/matin/2026-08-20.mp3" length="1120731" type="audio/mpeg"/>
+      <pubDate>Thu, 20 Aug 2026 07:56:34 +0200</pubDate>
+      <itunes:duration>3:06</itunes:duration>
+        <podcast:transcript url="https://rlacotte.github.io/myop/episodes/matin/2026-08-20.vtt" type="text/vtt" language="fr"/>
+  </item>
     <item>
       <title>Mon Briefing — mercredi 19 août</title>
       <link>https://rlacotte.github.io/myop/episodes/matin/2026-08-19.mp3</link>
