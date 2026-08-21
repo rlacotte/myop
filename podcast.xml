@@ -8,7 +8,7 @@
     <docs>http://www.rssboard.org/rss-specification</docs>
     <generator>python-feedgen</generator>
     <language>fr</language>
-    <lastBuildDate>Thu, 20 Aug 2026 07:56:34 +0200</lastBuildDate>
+    <lastBuildDate>Fri, 21 Aug 2026 07:58:08 +0200</lastBuildDate>
     <itunes:author>Moi</itunes:author>
     <itunes:category text="News"/>
     <itunes:image href="https://rlacotte.github.io/myop/cover.png"/>
@@ -18,6 +18,16 @@
       <itunes:email>moi@example.com</itunes:email>
     </itunes:owner>
     <itunes:subtitle>Émission générée par MYOP</itunes:subtitle>
+    <item>
+      <title>Mon Briefing — vendredi 21 août</title>
+      <link>https://rlacotte.github.io/myop/episodes/matin/2026-08-21.mp3</link>
+      <description>Etudiants en galère d’appart: «Parfois, je remets tout en question... Est-ce que j’arrête les études? » • Lyon: une série de cambriolages vise le matériel de secours des casernes de pompiers • ☕️ Sur le web, les bots IA écrivent de plus en plus pour les bots • Samsung et Apple au coude-à-coude en Europe malgré la chute du marché des smartphones • "Je suis en colère, ça fait des mois qu'il y a des failles de sécurité": entre lassitude et mécontentement, des contribuables racontent le piratage de leurs données après la cyberattaque des services fiscaux • "Le fruit est brûlé, il ne grossit plus", face à la sécheresse, les producteurs de pommes s'inquiètent pour leur récolte • Pourquoi l’action Ping An Insurance est-elle en hausse aujourd’hui? • Pourquoi l’action EQT Holdings s’envole-t-elle aujourd’hui? • En Syrie, l'administration kurde est désormais intégrée dans celle de l'Etat • Proton: le VPN le plus respectueux de vos données personnelles est en promo à -70 % [Sponso] • La croissance du secteur privé indien progresse légèrement en août • Transition énergétique: la nouvelle guerre des ressources?</description>
+      <guid isPermaLink="false">myop-matin-2026-08-21</guid>
+      <enclosure url="https://rlacotte.github.io/myop/episodes/matin/2026-08-21.mp3" length="1108492" type="audio/mpeg"/>
+      <pubDate>Fri, 21 Aug 2026 07:58:08 +0200</pubDate>
+      <itunes:duration>3:04</itunes:duration>
+        <podcast:transcript url="https://rlacotte.github.io/myop/episodes/matin/2026-08-21.vtt" type="text/vtt" language="fr"/>
+  </item>
     <item>
       <title>Mon Briefing — jeudi 20 août</title>
       <link>https://rlacotte.github.io/myop/episodes/matin/2026-08-20.mp3</link>
